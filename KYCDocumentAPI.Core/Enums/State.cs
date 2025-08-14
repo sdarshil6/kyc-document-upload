@@ -1,0 +1,37 @@
+﻿namespace KYCDocumentAPI.Core.Enums
+{
+    public enum State
+    {
+        AndhraPradesh = 1,
+        ArunachalPradesh = 2,
+        Assam = 3,
+        Bihar = 4,
+        Chhattisgarh = 5,
+        Goa = 6,
+        Gujarat = 7,
+        Haryana = 8,
+        HimachalPradesh = 9,
+        Jharkhand = 10,
+        Karnataka = 11,
+        Kerala = 12,
+        MadhyaPradesh = 13,
+        Maharashtra = 14,
+        Manipur = 15,
+        Meghalaya = 16,
+        Mizoram = 17,
+        Nagaland = 18,
+        Odisha = 19,
+        Punjab = 20,
+        Rajasthan = 21,
+        Sikkim = 22,
+        TamilNadu = 23,
+        Telangana = 24,
+        Tripura = 25,
+        UttarPradesh = 26,
+        Uttarakhand = 27,
+        WestBengal = 28,
+        Delhi = 29,
+        Puducherry = 30,
+        JammuKashmir = 31,        
+    }
+}
