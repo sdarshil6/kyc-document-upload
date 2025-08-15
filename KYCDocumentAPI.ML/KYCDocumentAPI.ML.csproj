@@ -3,11 +3,17 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="4.0.2" />
     <PackageReference Include="Microsoft.ML.Vision" Version="4.0.2" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KYCDocumentAPI.Core\KYCDocumentAPI.Core.csproj" />
+    <ProjectReference Include="..\KYCDocumentAPI.Core\KYCDocumentAPI.Core.csproj" />     
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Data\" />
+    <Folder Include="TrainingData\" />
   </ItemGroup>
 
   <PropertyGroup>

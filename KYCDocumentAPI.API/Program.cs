@@ -1,4 +1,5 @@
 using KYCDocumentAPI.Infrastructure.Data;
+using KYCDocumentAPI.ML.Services;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +44,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
+builder.Services.AddScoped<IOCRService, MockOCRService>();
+builder.Services.AddScoped<ITextPatternService, ITextPatternService>();
+builder.Services.AddSingleton<IDocumentClassificationService, DocumentClassificationService>();
 
 
 // Configure CORS
@@ -97,6 +101,21 @@ using (var scope = app.Services.CreateScope())
 }
 
 Log.Information("KYC Document API starting up...");
+
+// Initialize ML services
+using (var scope = app.Services.CreateScope())
+{    
+    try
+    {
+        var classificationService = scope.ServiceProvider.GetRequiredService<IDocumentClassificationService>();
+        await classificationService.InitializeModelAsync();
+        Log.Information("ML services initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Failed to initialize ML services");
+    }
+}
 
 try
 {

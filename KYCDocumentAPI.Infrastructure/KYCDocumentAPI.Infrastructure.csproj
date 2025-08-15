@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KYCDocumentAPI.Core\KYCDocumentAPI.Core.csproj" />
+	<ProjectReference Include="..\KYCDocumentAPI.ML\KYCDocumentAPI.ML.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

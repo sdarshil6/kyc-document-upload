@@ -1,6 +1,7 @@
 ﻿using KYCDocumentAPI.Core.Entities;
 using KYCDocumentAPI.Core.Enums;
 using KYCDocumentAPI.Infrastructure.Models;
+using KYCDocumentAPI.ML.Models;
 
 namespace KYCDocumentAPI.Infrastructure.Services
 {

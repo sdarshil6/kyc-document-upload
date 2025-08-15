@@ -1,6 +1,6 @@
 ﻿using KYCDocumentAPI.Core.Enums;
 
-namespace KYCDocumentAPI.Infrastructure.Models
+namespace KYCDocumentAPI.ML.Models
 {
     public class DocumentClassificationResult
     {

@@ -2,6 +2,8 @@
 using KYCDocumentAPI.Core.Enums;
 using KYCDocumentAPI.Infrastructure.Data;
 using KYCDocumentAPI.Infrastructure.Models;
+using KYCDocumentAPI.ML.Models;
+using KYCDocumentAPI.ML.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -11,135 +13,407 @@ namespace KYCDocumentAPI.Infrastructure.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DocumentProcessingService> _logger;
+        private readonly IDocumentClassificationService _classificationService;
+        private readonly IOCRService _ocrService;
+        private readonly ITextPatternService _textPatternService;
 
-        public DocumentProcessingService(ApplicationDbContext context, ILogger<DocumentProcessingService> logger)
+        public DocumentProcessingService(ApplicationDbContext context, ILogger<DocumentProcessingService> logger, IDocumentClassificationService classificationService, IOCRService ocrService, ITextPatternService textPatternService)
         {
             _context = context;
             _logger = logger;
+            _classificationService = classificationService;
+            _ocrService = ocrService;
+            _textPatternService = textPatternService;
+        }
+        private void ExtractAadhaarData(DocumentExtractionResult result, DocumentPatternResult patternResult)
+        {
+            result.AadhaarNumber = patternResult.AadhaarNumber;
+
+            // Extract common information from Aadhaar text
+            var text = patternResult.OriginalText;
+            result.FullName = ExtractName(text, "aadhaar");
+            result.DateOfBirth = ExtractDateOfBirth(text);
+            result.Gender = ExtractGender(text);
+            result.Address = ExtractAddress(text);
+            result.PinCode = ExtractPinCode(text);
+        }
+
+        private void ExtractPANData(DocumentExtractionResult result, DocumentPatternResult patternResult)
+        {
+            try
+            {
+                result.PANNumber = patternResult.PANNumber;
+
+                var text = patternResult.OriginalText;
+                result.FullName = ExtractName(text, "pan");
+                result.DateOfBirth = ExtractDateOfBirth(text);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractPANData() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private void ExtractPassportData(DocumentExtractionResult result, DocumentPatternResult patternResult)
+        {
+            try
+            {
+                result.PassportNumber = patternResult.PassportNumber;
+
+                var text = patternResult.OriginalText;
+                result.FullName = ExtractName(text, "passport");
+                result.DateOfBirth = ExtractDateOfBirth(text);
+                result.IssueDate = ExtractIssueDate(text);
+                result.ExpiryDate = ExtractExpiryDate(text);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractPassportData() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private void ExtractDrivingLicenseData(DocumentExtractionResult result, DocumentPatternResult patternResult)
+        {
+            try
+            {
+                var text = patternResult.OriginalText;
+                result.FullName = ExtractName(text, "license");
+                result.DateOfBirth = ExtractDateOfBirth(text);
+                result.Address = ExtractAddress(text);
+                result.IssueDate = ExtractIssueDate(text);
+                result.ExpiryDate = ExtractExpiryDate(text);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractDrivingLicenseData() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private void ExtractCommonData(DocumentExtractionResult result, DocumentPatternResult patternResult)
+        {
+            try
+            {
+                var text = patternResult.OriginalText;
+                result.FullName = ExtractName(text, "common");
+                result.DateOfBirth = ExtractDateOfBirth(text);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractCommonData() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private string? ExtractName(string text, string documentType)
+        {
+            try
+            {
+                // Simple name extraction logic - would be improved with better NLP
+                var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    if (trimmedLine.Length > 3 && trimmedLine.Length < 50 &&
+                        !trimmedLine.Any(char.IsDigit) &&
+                        !trimmedLine.Contains("government", StringComparison.OrdinalIgnoreCase) &&
+                        !trimmedLine.Contains("india", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Basic name validation
+                        if (System.Text.RegularExpressions.Regex.IsMatch(trimmedLine, @"^[A-Za-z\s]+$"))
+                        {
+                            return trimmedLine;
+                        }
+                    }
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractName() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private DateTime? ExtractDateOfBirth(string text)
+        {
+            try
+            {
+                var dobPatterns = new[]
+                    {
+                @"\b(?:dob|date of birth)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b",
+                @"\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b"
+            };
+
+                foreach (var pattern in dobPatterns)
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(text, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        var dateStr = match.Groups[1].Value;
+                        if (DateTime.TryParseExact(dateStr, new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" },
+                            null, System.Globalization.DateTimeStyles.None, out DateTime date))
+                        {
+                            return date;
+                        }
+                    }
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractDateOfBirth() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private string? ExtractGender(string text)
+        {
+            try
+            {
+                if (text.Contains("male", StringComparison.OrdinalIgnoreCase) &&
+                        !text.Contains("female", StringComparison.OrdinalIgnoreCase))
+                    return "Male";
+                if (text.Contains("female", StringComparison.OrdinalIgnoreCase))
+                    return "Female";
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractGender() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private string? ExtractAddress(string text)
+        {
+            try
+            {
+                // Simple address extraction - look for lines with address indicators
+                var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var addressLines = new List<string>();
+
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    if (trimmedLine.Length > 10 &&
+                        (trimmedLine.Contains("street", StringComparison.OrdinalIgnoreCase) ||
+                         trimmedLine.Contains("road", StringComparison.OrdinalIgnoreCase) ||
+                         trimmedLine.Any(char.IsDigit) && trimmedLine.Contains(",")))
+                    {
+                        addressLines.Add(trimmedLine);
+                        if (addressLines.Count >= 2) break; // Limit to 2 lines
+                    }
+                }
+
+                return addressLines.Count > 0 ? string.Join(", ", addressLines) : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractAddress() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private string? ExtractPinCode(string text)
+        {
+            try
+            {
+                var pinMatch = System.Text.RegularExpressions.Regex.Match(text, @"\b(\d{6})\b");
+                return pinMatch.Success ? pinMatch.Groups[1].Value : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractPinCode() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private DateTime? ExtractIssueDate(string text)
+        {
+            try
+            {
+                var issueDatePattern = @"(?:issue|issued)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})";
+                var match = System.Text.RegularExpressions.Regex.Match(text, issueDatePattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (match.Success && DateTime.TryParseExact(match.Groups[1].Value,
+                    new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" },
+                    null, System.Globalization.DateTimeStyles.None, out DateTime date))
+                {
+                    return date;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractIssueDate() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
+        }
+
+        private DateTime? ExtractExpiryDate(string text)
+        {
+            try
+            {
+                var expiryDatePattern = @"(?:expiry|expires|valid till)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})";
+                var match = System.Text.RegularExpressions.Regex.Match(text, expiryDatePattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (match.Success && DateTime.TryParseExact(match.Groups[1].Value,
+                    new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" },
+                    null, System.Globalization.DateTimeStyles.None, out DateTime date))
+                {
+                    return date;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractExpiryDate() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
         }
 
         public async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
         {
-            // TODO: Implement ML.NET document classification
-            // For now, return a mock result based on file name patterns
-            await Task.Delay(100); // Simulate processing time
-
-            var fileName = Path.GetFileNameWithoutExtension(filePath).ToLower();
-
-            var result = new DocumentClassificationResult
+            try
             {
-                PredictedType = DocumentType.Other,
-                Confidence = 0.95,
-                ProcessingNotes = "Mock classification - will be replaced with ML.NET model"
-            };
+                var fileName = Path.GetFileName(filePath);
+                var result = await _classificationService.ClassifyDocumentAsync(filePath, fileName);
 
-            // Simple pattern matching for demo
-            if (fileName.Contains("aadhaar") || fileName.Contains("aadhar"))
-            {
-                result.PredictedType = DocumentType.Aadhaar;
+                _logger.LogInformation("Document {FilePath} classified as {DocumentType} with confidence {Confidence}",
+                    filePath, result.PredictedType, result.Confidence);
+
+                return result;
             }
-            else if (fileName.Contains("pan"))
+            catch (Exception ex)
             {
-                result.PredictedType = DocumentType.PAN;
+                _logger.LogError(ex, "Error classifying document {FilePath}", filePath);
+                return new DocumentClassificationResult
+                {
+                    PredictedType = DocumentType.Other,
+                    Confidence = 0.0,
+                    ProcessingNotes = $"Classification failed: {ex.Message}"
+                };
             }
-            else if (fileName.Contains("passport"))
-            {
-                result.PredictedType = DocumentType.Passport;
-            }
-            else if (fileName.Contains("license"))
-            {
-                result.PredictedType = DocumentType.DrivingLicense;
-            }
-
-            result.AllPredictions = new Dictionary<DocumentType, double>
-            {
-                { result.PredictedType, result.Confidence },
-                { DocumentType.Other, 1 - result.Confidence }
-            };
-
-            return result;
         }
 
         public async Task<DocumentExtractionResult> ExtractDocumentDataAsync(string filePath, DocumentType documentType)
         {
-            // TODO: Implement OCR and data extraction with ML.NET
-            await Task.Delay(500); // Simulate processing time
-
-            var result = new DocumentExtractionResult
+            try
             {
-                Success = true,
-                ExtractionConfidence = 0.85
-            };
+                _logger.LogInformation("Extracting data from {DocumentType} document: {FilePath}", documentType, filePath);
 
-            // Mock data extraction based on document type
-            switch (documentType)
-            {
-                case DocumentType.Aadhaar:
-                    result.FullName = "John Doe";
-                    result.AadhaarNumber = "1234-5678-9012";
-                    result.DateOfBirth = new DateTime(1990, 1, 15);
-                    result.Gender = "Male";
-                    result.Address = "123 Sample Street, Mumbai";
-                    result.PinCode = "400001";
-                    break;
+                // Extract text using OCR
+                var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
+                if (!ocrResult.Success)
+                {
+                    return new DocumentExtractionResult
+                    {
+                        Success = false,
+                        Errors = ocrResult.Errors,
+                        ExtractionConfidence = 0.0
+                    };
+                }
 
-                case DocumentType.PAN:
-                    result.FullName = "John Doe";
-                    result.PANNumber = "ABCDE1234F";
-                    result.DateOfBirth = new DateTime(1990, 1, 15);
-                    break;
+                // Analyze patterns in the extracted text
+                var patternResult = _textPatternService.AnalyzeText(ocrResult.ExtractedText, Path.GetFileName(filePath));
 
-                case DocumentType.Passport:
-                    result.FullName = "John Doe";
-                    result.PassportNumber = "A1234567";
-                    result.DateOfBirth = new DateTime(1990, 1, 15);
-                    result.IssueDate = new DateTime(2020, 1, 1);
-                    result.ExpiryDate = new DateTime(2030, 1, 1);
-                    break;
+                var result = new DocumentExtractionResult
+                {
+                    Success = true,
+                    ExtractionConfidence = ocrResult.Confidence * 0.7 + patternResult.Confidence * 0.3,
+                    RawData = ocrResult.ExtractedText
+                };
+
+                // Extract structured data based on document type and patterns
+                switch (documentType)
+                {
+                    case DocumentType.Aadhaar:
+                        ExtractAadhaarData(result, patternResult);
+                        break;
+
+                    case DocumentType.PAN:
+                        ExtractPANData(result, patternResult);
+                        break;
+
+                    case DocumentType.Passport:
+                        ExtractPassportData(result, patternResult);
+                        break;
+
+                    case DocumentType.DrivingLicense:
+                        ExtractDrivingLicenseData(result, patternResult);
+                        break;
+
+                    default:
+                        ExtractCommonData(result, patternResult);
+                        break;
+                }
+
+                _logger.LogInformation("Data extraction completed for {DocumentType} with confidence {Confidence}",
+                    documentType, result.ExtractionConfidence);
+
+                return result;
             }
-
-            result.RawData = $"{{\"documentType\":\"{documentType}\",\"processed\":true,\"mock\":true}}";
-
-            return result;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error extracting data from document {FilePath}", filePath);
+                return new DocumentExtractionResult
+                {
+                    Success = false,
+                    Errors = new List<string> { $"Data extraction failed: {ex.Message}" },
+                    ExtractionConfidence = 0.0
+                };
+            }
         }
 
         public async Task<VerificationResult> VerifyDocumentAsync(Guid documentId)
         {
-            var document = await _context.Documents
-                .Include(d => d.DocumentData)
-                .FirstOrDefaultAsync(d => d.Id == documentId);
-
-            if (document == null)
-                throw new ArgumentException("Document not found", nameof(documentId));
-
-            // Create verification result
-            var verificationResult = new VerificationResult
+            try
             {
-                DocumentId = documentId,
-                Status = VerificationStatus.Authentic,
-                AuthenticityScore = 0.92,
-                QualityScore = 0.88,
-                ConsistencyScore = 0.95,
-                FraudScore = 0.05, // Lower is better for fraud
-                IsFormatValid = true,
-                IsDataConsistent = true,
-                IsImageClear = true,
-                IsTampered = false,
-                AIInsights = "Document appears authentic with high confidence scores across all verification metrics.",
-                ProcessedAt = DateTime.UtcNow
-            };
+                var document = await _context.Documents
+                        .Include(d => d.DocumentData)
+                        .FirstOrDefaultAsync(d => d.Id == documentId);
 
-            // Save verification result
-            _context.VerificationResults.Add(verificationResult);
+                if (document == null)
+                    throw new ArgumentException("Document not found", nameof(documentId));
 
-            // Update document status
-            document.Status = DocumentStatus.Verified;
+                // Create verification result
+                var verificationResult = new VerificationResult
+                {
+                    DocumentId = documentId,
+                    Status = VerificationStatus.Authentic,
+                    AuthenticityScore = 0.92,
+                    QualityScore = 0.88,
+                    ConsistencyScore = 0.95,
+                    FraudScore = 0.05, // Lower is better for fraud
+                    IsFormatValid = true,
+                    IsDataConsistent = true,
+                    IsImageClear = true,
+                    IsTampered = false,
+                    AIInsights = "Document appears authentic with high confidence scores across all verification metrics.",
+                    ProcessedAt = DateTime.UtcNow
+                };
 
-            await _context.SaveChangesAsync();
+                // Save verification result
+                _context.VerificationResults.Add(verificationResult);
 
-            _logger.LogInformation("Document {DocumentId} verified successfully", documentId);
+                // Update document status
+                document.Status = DocumentStatus.Verified;
 
-            return verificationResult;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Document {DocumentId} verified successfully", documentId);
+
+                return verificationResult;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside VerifyDocumentAsync() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
         }
 
         public async Task ProcessDocumentAsync(Guid documentId)
@@ -156,7 +430,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 document.Status = DocumentStatus.Processing;
                 await _context.SaveChangesAsync();
 
-                // Step 1: Classify document type (if not already specified)
+                // Classify document type (if not already specified)
                 var classificationResult = await ClassifyDocumentAsync(document.FilePath);
 
                 // Update document type if classification is confident and different
@@ -167,7 +441,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     document.DocumentType = classificationResult.PredictedType;
                 }
 
-                // Step 2: Extract data from document
+                // Extract data from document
                 var extractionResult = await ExtractDocumentDataAsync(document.FilePath, document.DocumentType);
 
                 if (extractionResult.Success)
@@ -199,7 +473,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     await _context.SaveChangesAsync();
                 }
 
-                // Step 3: Perform verification
+                // Perform verification
                 await VerifyDocumentAsync(documentId);
 
                 _logger.LogInformation("Document {DocumentId} processing completed successfully", documentId);
