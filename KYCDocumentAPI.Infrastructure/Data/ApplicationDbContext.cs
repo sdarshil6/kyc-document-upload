@@ -94,8 +94,9 @@ namespace KYCDocumentAPI.Infrastructure.Data
 
         private static void SeedData(ModelBuilder modelBuilder)
         {
-            // Seed a test user
-            var testUserId = Guid.NewGuid();
+            // Use fixed Guid
+            var testUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
             modelBuilder.Entity<User>().HasData(new User
             {
                 Id = testUserId,
@@ -106,9 +107,10 @@ namespace KYCDocumentAPI.Infrastructure.Data
                 DateOfBirth = new DateTime(1990, 1, 15),
                 City = "Mumbai",
                 State = State.Maharashtra,
-                PinCode = "400001",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                PinCode = "400001",               
+                CreatedAt = new DateTime(2024, 01, 01, 0, 0, 0, DateTimeKind.Utc),
+                UpdatedAt = new DateTime(2024, 01, 01, 0, 0, 0, DateTimeKind.Utc),
+
                 IsActive = true
             });
         }
