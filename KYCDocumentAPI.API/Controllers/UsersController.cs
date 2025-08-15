@@ -3,8 +3,6 @@ using KYCDocumentAPI.API.Models.Requests;
 using KYCDocumentAPI.API.Models.Responses;
 using KYCDocumentAPI.Core.Entities;
 using KYCDocumentAPI.Infrastructure.Data;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace KYCDocumentAPI.API.Controllers
 {

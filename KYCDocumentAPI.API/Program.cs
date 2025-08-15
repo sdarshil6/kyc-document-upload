@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using KYCDocumentAPI.Infrastructure.Data;
 using Serilog;
 
@@ -40,6 +39,11 @@ builder.Services.AddSwaggerGen(c =>
 // Configure PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register services
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
+
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -139,5 +143,5 @@ public class SwaggerFileOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOpe
                 }
             };
         }
-    }
+    }    
 }
