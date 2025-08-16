@@ -47,6 +47,7 @@ builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService
 builder.Services.AddScoped<IOCRService, MockOCRService>();
 builder.Services.AddScoped<ITextPatternService, ITextPatternService>();
 builder.Services.AddSingleton<IDocumentClassificationService, DocumentClassificationService>();
+builder.Services.AddScoped<IDocumentValidationService, DocumentValidationService>();
 
 
 // Configure CORS

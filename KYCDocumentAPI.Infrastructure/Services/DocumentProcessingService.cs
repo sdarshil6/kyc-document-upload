@@ -2,10 +2,12 @@
 using KYCDocumentAPI.Core.Enums;
 using KYCDocumentAPI.Infrastructure.Data;
 using KYCDocumentAPI.Infrastructure.Models;
+using KYCDocumentAPI.ML.Enums;
 using KYCDocumentAPI.ML.Models;
 using KYCDocumentAPI.ML.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace KYCDocumentAPI.Infrastructure.Services
 {
@@ -16,26 +18,296 @@ namespace KYCDocumentAPI.Infrastructure.Services
         private readonly IDocumentClassificationService _classificationService;
         private readonly IOCRService _ocrService;
         private readonly ITextPatternService _textPatternService;
+        private readonly IDocumentValidationService _validationService;
 
-        public DocumentProcessingService(ApplicationDbContext context, ILogger<DocumentProcessingService> logger, IDocumentClassificationService classificationService, IOCRService ocrService, ITextPatternService textPatternService)
+        public DocumentProcessingService(
+            ApplicationDbContext context,
+            ILogger<DocumentProcessingService> logger,
+            IDocumentClassificationService classificationService,
+            IOCRService ocrService,
+            ITextPatternService textPatternService,
+            IDocumentValidationService validationService)
         {
             _context = context;
             _logger = logger;
             _classificationService = classificationService;
             _ocrService = ocrService;
             _textPatternService = textPatternService;
+            _validationService = validationService;
         }
+
+        public async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
+        {
+            try
+            {
+                var fileName = Path.GetFileName(filePath);
+                var result = await _classificationService.ClassifyDocumentAsync(filePath, fileName);
+
+                _logger.LogInformation("Document {FilePath} classified as {DocumentType} with confidence {Confidence}",
+                    filePath, result.PredictedType, result.Confidence);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error classifying document {FilePath} inside ClassifyDocumentAsync() in DocumentProcessingService.cs ", filePath);
+                return new DocumentClassificationResult
+                {
+                    PredictedType = DocumentType.Other,
+                    Confidence = 0.0,
+                    ProcessingNotes = $"Classification failed: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<DocumentExtractionResult> ExtractDocumentDataAsync(string filePath, DocumentType documentType)
+        {
+            try
+            {
+                _logger.LogInformation("Extracting data from {DocumentType} document: {FilePath}", documentType, filePath);
+
+                // Extract text using OCR
+                var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
+                if (!ocrResult.Success)
+                {
+                    return new DocumentExtractionResult
+                    {
+                        Success = false,
+                        Errors = ocrResult.Errors,
+                        ExtractionConfidence = 0.0
+                    };
+                }
+
+                // Analyze patterns in the extracted text
+                var patternResult = _textPatternService.AnalyzeText(ocrResult.ExtractedText, Path.GetFileName(filePath));
+
+                var result = new DocumentExtractionResult
+                {
+                    Success = true,
+                    ExtractionConfidence = ocrResult.Confidence * 0.7 + patternResult.Confidence * 0.3,
+                    RawData = ocrResult.ExtractedText
+                };
+
+                // Extract structured data based on document type and patterns
+                switch (documentType)
+                {
+                    case DocumentType.Aadhaar:
+                        ExtractAadhaarData(result, patternResult);
+                        break;
+
+                    case DocumentType.PAN:
+                        ExtractPANData(result, patternResult);
+                        break;
+
+                    case DocumentType.Passport:
+                        ExtractPassportData(result, patternResult);
+                        break;
+
+                    case DocumentType.DrivingLicense:
+                        ExtractDrivingLicenseData(result, patternResult);
+                        break;
+
+                    default:
+                        ExtractCommonData(result, patternResult);
+                        break;
+                }
+
+                _logger.LogInformation("Data extraction completed for {DocumentType} with confidence {Confidence}",
+                    documentType, result.ExtractionConfidence);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error extracting data from document {FilePath} inside ExtractDocumentDataAsync() in DocumentProcessingService.cs ", filePath);
+                return new DocumentExtractionResult
+                {
+                    Success = false,
+                    Errors = new List<string> { $"Data extraction failed: {ex.Message}" },
+                    ExtractionConfidence = 0.0
+                };
+            }
+        }
+
+        public async Task<VerificationResult> VerifyDocumentAsync(Guid documentId)
+        {
+            try
+            {
+                var document = await _context.Documents
+                    .Include(d => d.DocumentData)
+                    .FirstOrDefaultAsync(d => d.Id == documentId);
+
+                if (document == null)
+                    throw new ArgumentException("Document not found", nameof(documentId));
+
+                _logger.LogInformation("Starting comprehensive verification for document {DocumentId}", documentId);
+
+                // Run fraud detection and validation
+                var validationResult = await _validationService.ValidateDocumentAsync(document);
+
+                // Create verification result based on validation
+                var verificationResult = new VerificationResult
+                {
+                    DocumentId = documentId,
+                    Status = validationResult.Status,
+                    AuthenticityScore = validationResult.Metrics.AuthenticityScore,
+                    QualityScore = validationResult.Metrics.QualityScore,
+                    ConsistencyScore = validationResult.Metrics.ConsistencyScore,
+                    FraudScore = validationResult.Metrics.FraudRiskScore,
+                    IsFormatValid = validationResult.Checks.Where(c => c.Category == "Structure").All(c => c.Passed),
+                    IsDataConsistent = validationResult.Metrics.ConsistencyScore >= 0.7f,
+                    IsImageClear = validationResult.Metrics.QualityScore >= 0.6f,
+                    IsTampered = validationResult.Metrics.FraudRiskScore > 0.7f,
+                    FailureReasons = string.Join(", ", validationResult.Checks
+                        .Where(c => !c.Passed && c.Severity >= CheckSeverity.High)
+                        .Select(c => c.Description)),
+                    AIInsights = GenerateAIInsights(validationResult),
+                    ProcessedAt = DateTime.UtcNow
+                };
+
+                // Save verification result
+                _context.VerificationResults.Add(verificationResult);
+
+                // Update document status based on verification result
+                document.Status = validationResult.Status switch
+                {
+                    VerificationStatus.Authentic => DocumentStatus.Verified,
+                    VerificationStatus.Fraudulent => DocumentStatus.Rejected,
+                    VerificationStatus.Suspicious => DocumentStatus.Rejected,
+                    VerificationStatus.TechnicalError => DocumentStatus.Processing,
+                    _ => DocumentStatus.Processing
+                };
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Document {DocumentId} verification completed with status {Status} and fraud score {FraudScore}", documentId, verificationResult.Status, Math.Round(verificationResult.FraudScore * 100, 1));
+
+                return verificationResult;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying document {DocumentId} inside VerifyDocumentAsync() in DocumentProcessingService.cs", documentId);
+
+                // Create error verification result
+                var errorResult = new VerificationResult
+                {
+                    DocumentId = documentId,
+                    Status = VerificationStatus.TechnicalError,
+                    AuthenticityScore = 0.0,
+                    QualityScore = 0.0,
+                    ConsistencyScore = 0.0,
+                    FraudScore = 1.0,
+                    IsFormatValid = false,
+                    IsDataConsistent = false,
+                    IsImageClear = false,
+                    IsTampered = false,
+                    FailureReasons = $"Verification failed: {ex.Message}",
+                    AIInsights = "Technical error occurred during verification",
+                    ProcessedAt = DateTime.UtcNow
+                };
+
+                _context.VerificationResults.Add(errorResult);
+                await _context.SaveChangesAsync();
+
+                return errorResult;
+            }
+        }
+
+        public async Task ProcessDocumentAsync(Guid documentId)
+        {
+            try
+            {
+                var document = await _context.Documents.FindAsync(documentId);
+                if (document == null)
+                {
+                    _logger.LogWarning("Document {DocumentId} not found for processing", documentId);
+                    return;
+                }
+
+                document.Status = DocumentStatus.Processing;
+                await _context.SaveChangesAsync();
+
+                // Classify document type (if not already specified)
+                var classificationResult = await ClassifyDocumentAsync(document.FilePath);
+
+                // Update document type if classification is confident and different
+                if (classificationResult.IsConfident && classificationResult.PredictedType != document.DocumentType)
+                {
+                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification",
+                        documentId, document.DocumentType, classificationResult.PredictedType);
+                    document.DocumentType = classificationResult.PredictedType;
+                }
+
+                // Extract data from document
+                var extractionResult = await ExtractDocumentDataAsync(document.FilePath, document.DocumentType);
+
+                if (extractionResult.Success)
+                {
+                    // Create or update document data
+                    var documentData = await _context.DocumentData.FirstOrDefaultAsync(dd => dd.DocumentId == documentId)
+                                     ?? new DocumentData { DocumentId = documentId };
+
+                    documentData.FullName = extractionResult.FullName;
+                    documentData.DateOfBirth = extractionResult.DateOfBirth;
+                    documentData.Gender = extractionResult.Gender;
+                    documentData.AadhaarNumber = extractionResult.AadhaarNumber;
+                    documentData.PANNumber = extractionResult.PANNumber;
+                    documentData.PassportNumber = extractionResult.PassportNumber;
+                    documentData.IssueDate = extractionResult.IssueDate;
+                    documentData.ExpiryDate = extractionResult.ExpiryDate;
+                    documentData.Address = extractionResult.Address;
+                    documentData.City = extractionResult.City;
+                    documentData.State = extractionResult.State;
+                    documentData.PinCode = extractionResult.PinCode;
+                    documentData.ExtractionConfidence = extractionResult.ExtractionConfidence;
+                    documentData.RawExtractedData = extractionResult.RawData;
+
+                    if (documentData.Id == Guid.Empty)
+                    {
+                        _context.DocumentData.Add(documentData);
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
+                // Perform verification
+                await VerifyDocumentAsync(documentId);
+
+                _logger.LogInformation("Document {DocumentId} processing completed successfully", documentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing document {DocumentId} inside ProcessDocumentAsync() in DocumentProcessingService.cs", documentId);
+
+                // Update document status to reflect error
+                var document = await _context.Documents.FindAsync(documentId);
+                if (document != null)
+                {
+                    document.Status = DocumentStatus.Rejected;
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
+        
         private void ExtractAadhaarData(DocumentExtractionResult result, DocumentPatternResult patternResult)
         {
-            result.AadhaarNumber = patternResult.AadhaarNumber;
+            try
+            {
+                result.AadhaarNumber = patternResult.AadhaarNumber;
 
-            // Extract common information from Aadhaar text
-            var text = patternResult.OriginalText;
-            result.FullName = ExtractName(text, "aadhaar");
-            result.DateOfBirth = ExtractDateOfBirth(text);
-            result.Gender = ExtractGender(text);
-            result.Address = ExtractAddress(text);
-            result.PinCode = ExtractPinCode(text);
+                // Extract common information from Aadhaar text
+                var text = patternResult.OriginalText;
+                result.FullName = ExtractName(text, "aadhaar");
+                result.DateOfBirth = ExtractDateOfBirth(text);
+                result.Gender = ExtractGender(text);
+                result.Address = ExtractAddress(text);
+                result.PinCode = ExtractPinCode(text);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occurred inside ExtractAadhaarData() in DocumentProcessingService.cs : " + ex);
+                throw;
+            }
         }
 
         private void ExtractPANData(DocumentExtractionResult result, DocumentPatternResult patternResult)
@@ -111,7 +383,6 @@ namespace KYCDocumentAPI.Infrastructure.Services
         {
             try
             {
-                // Simple name extraction logic - would be improved with better NLP
                 var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (var line in lines)
@@ -123,7 +394,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                         !trimmedLine.Contains("india", StringComparison.OrdinalIgnoreCase))
                     {
                         // Basic name validation
-                        if (System.Text.RegularExpressions.Regex.IsMatch(trimmedLine, @"^[A-Za-z\s]+$"))
+                        if (Regex.IsMatch(trimmedLine, @"^[A-Za-z\s]+$"))
                         {
                             return trimmedLine;
                         }
@@ -150,7 +421,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
 
                 foreach (var pattern in dobPatterns)
                 {
-                    var match = System.Text.RegularExpressions.Regex.Match(text, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
                     if (match.Success)
                     {
                         var dateStr = match.Groups[1].Value;
@@ -192,7 +463,6 @@ namespace KYCDocumentAPI.Infrastructure.Services
         {
             try
             {
-                // Simple address extraction - look for lines with address indicators
                 var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
                 var addressLines = new List<string>();
 
@@ -222,7 +492,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
         {
             try
             {
-                var pinMatch = System.Text.RegularExpressions.Regex.Match(text, @"\b(\d{6})\b");
+                var pinMatch = Regex.Match(text, @"\b(\d{6})\b");
                 return pinMatch.Success ? pinMatch.Groups[1].Value : null;
             }
             catch (Exception ex)
@@ -237,7 +507,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
             try
             {
                 var issueDatePattern = @"(?:issue|issued)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})";
-                var match = System.Text.RegularExpressions.Regex.Match(text, issueDatePattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var match = Regex.Match(text, issueDatePattern, RegexOptions.IgnoreCase);
 
                 if (match.Success && DateTime.TryParseExact(match.Groups[1].Value,
                     new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" },
@@ -259,7 +529,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
             try
             {
                 var expiryDatePattern = @"(?:expiry|expires|valid till)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})";
-                var match = System.Text.RegularExpressions.Regex.Match(text, expiryDatePattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var match = Regex.Match(text, expiryDatePattern, RegexOptions.IgnoreCase);
 
                 if (match.Success && DateTime.TryParseExact(match.Groups[1].Value,
                     new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" },
@@ -276,219 +546,50 @@ namespace KYCDocumentAPI.Infrastructure.Services
             }
         }
 
-        public async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
+        private string GenerateAIInsights(DocumentValidationResult validationResult)
         {
             try
             {
-                var fileName = Path.GetFileName(filePath);
-                var result = await _classificationService.ClassifyDocumentAsync(filePath, fileName);
+                var insights = new List<string>();
 
-                _logger.LogInformation("Document {FilePath} classified as {DocumentType} with confidence {Confidence}",
-                    filePath, result.PredictedType, result.Confidence);
+                // Quality insights
+                if (validationResult.Metrics.QualityScore >= 0.8f)
+                    insights.Add("Excellent image quality detected");
+                else if (validationResult.Metrics.QualityScore < 0.5f)
+                    insights.Add("Poor image quality may affect accuracy");
 
-                return result;
+                // Authenticity insights
+                if (validationResult.Metrics.AuthenticityScore >= 0.9f)
+                    insights.Add("Strong authenticity indicators present");
+                else if (validationResult.Metrics.AuthenticityScore < 0.6f)
+                    insights.Add("Limited authenticity indicators found");
+
+                // Fraud risk insights
+                if (validationResult.Metrics.FraudRiskScore > 0.7f)
+                    insights.Add("High fraud risk - multiple red flags detected");
+                else if (validationResult.Metrics.FraudRiskScore > 0.4f)
+                    insights.Add("Medium fraud risk - some concerns identified");
+                else
+                    insights.Add("Low fraud risk - document appears legitimate");
+
+                // Specific check insights
+                var failedCriticalChecks = validationResult.Checks
+                    .Where(c => !c.Passed && c.Severity >= CheckSeverity.High)
+                    .ToList();
+
+                if (failedCriticalChecks.Any())
+                    insights.Add($"Critical issues: {string.Join(", ", failedCriticalChecks.Select(c => c.CheckName))}");
+
+                // Positive indicators
+                if (validationResult.Metrics.PositiveIndicators.Any())
+                    insights.Add($"Positive indicators: {string.Join(", ", validationResult.Metrics.PositiveIndicators)}");
+
+                return insights.Any() ? string.Join(". ", insights) + "." : "Document processed successfully";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error classifying document {FilePath}", filePath);
-                return new DocumentClassificationResult
-                {
-                    PredictedType = DocumentType.Other,
-                    Confidence = 0.0,
-                    ProcessingNotes = $"Classification failed: {ex.Message}"
-                };
-            }
-        }
-
-        public async Task<DocumentExtractionResult> ExtractDocumentDataAsync(string filePath, DocumentType documentType)
-        {
-            try
-            {
-                _logger.LogInformation("Extracting data from {DocumentType} document: {FilePath}", documentType, filePath);
-
-                // Extract text using OCR
-                var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
-                if (!ocrResult.Success)
-                {
-                    return new DocumentExtractionResult
-                    {
-                        Success = false,
-                        Errors = ocrResult.Errors,
-                        ExtractionConfidence = 0.0
-                    };
-                }
-
-                // Analyze patterns in the extracted text
-                var patternResult = _textPatternService.AnalyzeText(ocrResult.ExtractedText, Path.GetFileName(filePath));
-
-                var result = new DocumentExtractionResult
-                {
-                    Success = true,
-                    ExtractionConfidence = ocrResult.Confidence * 0.7 + patternResult.Confidence * 0.3,
-                    RawData = ocrResult.ExtractedText
-                };
-
-                // Extract structured data based on document type and patterns
-                switch (documentType)
-                {
-                    case DocumentType.Aadhaar:
-                        ExtractAadhaarData(result, patternResult);
-                        break;
-
-                    case DocumentType.PAN:
-                        ExtractPANData(result, patternResult);
-                        break;
-
-                    case DocumentType.Passport:
-                        ExtractPassportData(result, patternResult);
-                        break;
-
-                    case DocumentType.DrivingLicense:
-                        ExtractDrivingLicenseData(result, patternResult);
-                        break;
-
-                    default:
-                        ExtractCommonData(result, patternResult);
-                        break;
-                }
-
-                _logger.LogInformation("Data extraction completed for {DocumentType} with confidence {Confidence}",
-                    documentType, result.ExtractionConfidence);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error extracting data from document {FilePath}", filePath);
-                return new DocumentExtractionResult
-                {
-                    Success = false,
-                    Errors = new List<string> { $"Data extraction failed: {ex.Message}" },
-                    ExtractionConfidence = 0.0
-                };
-            }
-        }
-
-        public async Task<VerificationResult> VerifyDocumentAsync(Guid documentId)
-        {
-            try
-            {
-                var document = await _context.Documents
-                        .Include(d => d.DocumentData)
-                        .FirstOrDefaultAsync(d => d.Id == documentId);
-
-                if (document == null)
-                    throw new ArgumentException("Document not found", nameof(documentId));
-
-                // Create verification result
-                var verificationResult = new VerificationResult
-                {
-                    DocumentId = documentId,
-                    Status = VerificationStatus.Authentic,
-                    AuthenticityScore = 0.92,
-                    QualityScore = 0.88,
-                    ConsistencyScore = 0.95,
-                    FraudScore = 0.05, // Lower is better for fraud
-                    IsFormatValid = true,
-                    IsDataConsistent = true,
-                    IsImageClear = true,
-                    IsTampered = false,
-                    AIInsights = "Document appears authentic with high confidence scores across all verification metrics.",
-                    ProcessedAt = DateTime.UtcNow
-                };
-
-                // Save verification result
-                _context.VerificationResults.Add(verificationResult);
-
-                // Update document status
-                document.Status = DocumentStatus.Verified;
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Document {DocumentId} verified successfully", documentId);
-
-                return verificationResult;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error occurred inside VerifyDocumentAsync() in DocumentProcessingService.cs : " + ex);
+                _logger.LogError("Error occurred inside GenerateAIInsights() in DocumentProcessingService.cs : " + ex);
                 throw;
-            }
-        }
-
-        public async Task ProcessDocumentAsync(Guid documentId)
-        {
-            try
-            {
-                var document = await _context.Documents.FindAsync(documentId);
-                if (document == null)
-                {
-                    _logger.LogWarning("Document {DocumentId} not found for processing", documentId);
-                    return;
-                }
-
-                document.Status = DocumentStatus.Processing;
-                await _context.SaveChangesAsync();
-
-                // Classify document type (if not already specified)
-                var classificationResult = await ClassifyDocumentAsync(document.FilePath);
-
-                // Update document type if classification is confident and different
-                if (classificationResult.IsConfident && classificationResult.PredictedType != document.DocumentType)
-                {
-                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification",
-                        documentId, document.DocumentType, classificationResult.PredictedType);
-                    document.DocumentType = classificationResult.PredictedType;
-                }
-
-                // Extract data from document
-                var extractionResult = await ExtractDocumentDataAsync(document.FilePath, document.DocumentType);
-
-                if (extractionResult.Success)
-                {
-                    // Create or update document data
-                    var documentData = await _context.DocumentData.FirstOrDefaultAsync(dd => dd.DocumentId == documentId)
-                                     ?? new DocumentData { DocumentId = documentId };
-
-                    documentData.FullName = extractionResult.FullName;
-                    documentData.DateOfBirth = extractionResult.DateOfBirth;
-                    documentData.Gender = extractionResult.Gender;
-                    documentData.AadhaarNumber = extractionResult.AadhaarNumber;
-                    documentData.PANNumber = extractionResult.PANNumber;
-                    documentData.PassportNumber = extractionResult.PassportNumber;
-                    documentData.IssueDate = extractionResult.IssueDate;
-                    documentData.ExpiryDate = extractionResult.ExpiryDate;
-                    documentData.Address = extractionResult.Address;
-                    documentData.City = extractionResult.City;
-                    documentData.State = extractionResult.State;
-                    documentData.PinCode = extractionResult.PinCode;
-                    documentData.ExtractionConfidence = extractionResult.ExtractionConfidence;
-                    documentData.RawExtractedData = extractionResult.RawData;
-
-                    if (documentData.Id == Guid.Empty)
-                    {
-                        _context.DocumentData.Add(documentData);
-                    }
-
-                    await _context.SaveChangesAsync();
-                }
-
-                // Perform verification
-                await VerifyDocumentAsync(documentId);
-
-                _logger.LogInformation("Document {DocumentId} processing completed successfully", documentId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing document {DocumentId}", documentId);
-
-                // Update document status to reflect error
-                var document = await _context.Documents.FindAsync(documentId);
-                if (document != null)
-                {
-                    document.Status = DocumentStatus.Rejected;
-                    await _context.SaveChangesAsync();
-                }
             }
         }
     }
