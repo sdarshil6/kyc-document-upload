@@ -5,6 +5,7 @@ using KYCDocumentAPI.ML.Models;
 using KYCDocumentAPI.API.Models.Responses;
 using KYCDocumentAPI.Core.Enums;
 using KYCDocumentAPI.API.Models.Requests;
+using KYCDocumentAPI.API.Models.DTOs;
 
 namespace KYCDocumentAPI.API.Controllers
 {
@@ -94,23 +95,22 @@ namespace KYCDocumentAPI.API.Controllers
         /// Test fraud detection with uploaded file
         /// </summary>
         [HttpPost("test")]
-        public async Task<ActionResult<ApiResponse<object>>> TestFraudDetection(
-            [FromForm] IFormFile file,
-            [FromForm] string documentType = "Other")
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ApiResponse<object>>> TestFraudDetection([FromForm] FraudDetectionRequestDto request)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (request.File == null || request.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
-                if (!Enum.TryParse<DocumentType>(documentType, out var docType))
+                if (!Enum.TryParse<DocumentType>(request.DocumentType, out var docType))
                     docType = DocumentType.Other;
 
                 // Save file temporarily
                 var tempPath = Path.GetTempFileName();
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
-                    await file.CopyToAsync(stream);
+                    await request.File.CopyToAsync(stream);
                 }
 
                 // Run validation
@@ -121,7 +121,7 @@ namespace KYCDocumentAPI.API.Controllers
 
                 var response = new
                 {
-                    FileName = file.FileName,
+                    FileName = request.File.FileName,
                     DocumentType = docType.ToString(),
                     ValidationResult = new
                     {

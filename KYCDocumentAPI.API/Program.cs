@@ -98,7 +98,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
 builder.Services.AddScoped<IOCRService, MockOCRService>();
-builder.Services.AddScoped<ITextPatternService, ITextPatternService>();
+builder.Services.AddScoped<ITextPatternService, TextPatternService>();
 builder.Services.AddSingleton<IDocumentClassificationService, DocumentClassificationService>();
 builder.Services.AddScoped<IDocumentValidationService, DocumentValidationService>();
 builder.Services.AddScoped<ICacheService, CacheService>();

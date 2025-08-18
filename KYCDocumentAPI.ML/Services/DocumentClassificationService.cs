@@ -1,6 +1,7 @@
 ﻿using KYCDocumentAPI.Core.Enums;
 
 using KYCDocumentAPI.ML.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
 using Microsoft.ML.Data;
@@ -10,23 +11,18 @@ namespace KYCDocumentAPI.ML.Services
     public class DocumentClassificationService : IDocumentClassificationService, IDisposable
     {
         private readonly MLContext _mlContext;
-        private readonly ILogger<DocumentClassificationService> _logger;
-        private readonly IOCRService _ocrService;
-        private readonly ITextPatternService _textPatternService;
+        private readonly ILogger<DocumentClassificationService> _logger;                
         private ITransformer? _model;
         private object? _predictionEngine; // placeholder for now
+        private readonly IServiceProvider _provider;
 
         public bool IsModelReady => _model != null && _predictionEngine != null;
 
-        public DocumentClassificationService(
-            ILogger<DocumentClassificationService> logger,
-            IOCRService ocrService,
-            ITextPatternService textPatternService)
+        public DocumentClassificationService(ILogger<DocumentClassificationService> logger, IServiceProvider provider)
         {
             _mlContext = new MLContext(seed: 0);
-            _logger = logger;
-            _ocrService = ocrService;
-            _textPatternService = textPatternService;
+            _logger = logger;                        
+            _provider = provider;
         }
 
         private async Task<DocumentClassificationResult> PredictDocumentType(
@@ -135,7 +131,9 @@ namespace KYCDocumentAPI.ML.Services
 
                 _logger.LogInformation("Classifying document: {FilePath}", filePath);
 
-                var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
+                using var scope = _provider.CreateScope();
+                var ocrService = scope.ServiceProvider.GetRequiredService<IOCRService>();
+                var ocrResult = await ocrService.ExtractTextFromImageAsync(filePath);
                 if (!ocrResult.Success)
                 {
                     return new DocumentClassificationResult
@@ -146,8 +144,9 @@ namespace KYCDocumentAPI.ML.Services
                     };
                 }
 
-                var patternResult = _textPatternService.AnalyzeText(ocrResult.ExtractedText, fileName);
-                var qualityResult = await _ocrService.AnalyzeImageQualityAsync(filePath);
+                var textPatternService = scope.ServiceProvider.GetRequiredService<ITextPatternService>();
+                var patternResult = textPatternService.AnalyzeText(ocrResult.ExtractedText, fileName);
+                var qualityResult = await ocrService.AnalyzeImageQualityAsync(filePath);
 
                 var input = new DocumentClassificationInput
                 {

@@ -1,4 +1,5 @@
-﻿using KYCDocumentAPI.API.Models.Requests;
+﻿using KYCDocumentAPI.API.Models.DTOs;
+using KYCDocumentAPI.API.Models.Requests;
 using KYCDocumentAPI.API.Models.Responses;
 using KYCDocumentAPI.ML.Services;
 
@@ -27,18 +28,19 @@ namespace KYCDocumentAPI.API.Controllers
         /// Test OCR functionality with uploaded file
         /// </summary>
         [HttpPost("ocr")]
-        public async Task<ActionResult<ApiResponse<object>>> TestOCR([FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ApiResponse<object>>> TestOCR([FromForm] OCRRequestDto request)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (request.File == null || request.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
                 // Save file temporarily
                 var tempPath = Path.GetTempFileName();
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
-                    await file.CopyToAsync(stream);
+                    await request.File.CopyToAsync(stream);
                 }
 
                 // Run OCR
@@ -71,22 +73,23 @@ namespace KYCDocumentAPI.API.Controllers
         /// Test document classification with uploaded file
         /// </summary>
         [HttpPost("classify")]
-        public async Task<ActionResult<ApiResponse<object>>> TestClassification([FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ApiResponse<object>>> TestClassification([FromForm] ClassifyRequestDto classifyRequest)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (classifyRequest.File == null || classifyRequest.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
                 // Save file temporarily
                 var tempPath = Path.GetTempFileName();
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
-                    await file.CopyToAsync(stream);
+                    await classifyRequest.File.CopyToAsync(stream);
                 }
 
                 // Run classification
-                var classificationResult = await _classificationService.ClassifyDocumentAsync(tempPath, file.FileName);
+                var classificationResult = await _classificationService.ClassifyDocumentAsync(tempPath, classifyRequest.File.FileName);
 
                 // Clean up
                 System.IO.File.Delete(tempPath);
@@ -101,7 +104,7 @@ namespace KYCDocumentAPI.API.Controllers
                     ),
                     ProcessingNotes = classificationResult.ProcessingNotes,
                     IsConfident = classificationResult.Confidence > 0.8,
-                    FileName = file.FileName
+                    FileName = classifyRequest.File.FileName
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Document classification completed"));
@@ -162,18 +165,19 @@ namespace KYCDocumentAPI.API.Controllers
         /// Test image quality analysis
         /// </summary>
         [HttpPost("quality")]
-        public async Task<ActionResult<ApiResponse<object>>> TestImageQuality([FromForm] IFormFile file)
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ApiResponse<object>>> TestImageQuality([FromForm] QualityRequestDto qualityRequest)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (qualityRequest.File == null || qualityRequest.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
                 // Save file temporarily
                 var tempPath = Path.GetTempFileName();
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
-                    await file.CopyToAsync(stream);
+                    await qualityRequest.File.CopyToAsync(stream);
                 }
 
                 // Analyze quality
@@ -201,8 +205,8 @@ namespace KYCDocumentAPI.API.Controllers
                     QualityIssues = qualityResult.QualityIssues,
                     Recommendation = qualityResult.OverallQuality > 0.7 ? "Good quality" :
                                    qualityResult.OverallQuality > 0.5 ? "Acceptable quality" : "Poor quality - retake recommended",
-                    FileName = file.FileName,
-                    FileSize = file.Length
+                    FileName = qualityRequest.File.FileName,
+                    FileSize = qualityRequest.File.Length
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Image quality analysis completed"));
