@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <Folder Include="Data\" />
+    <Folder Include="OCR\Engines\" />
     <Folder Include="TrainingData\" />
   </ItemGroup>
 
