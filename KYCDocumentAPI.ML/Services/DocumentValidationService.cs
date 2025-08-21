@@ -2,6 +2,7 @@
 using KYCDocumentAPI.Core.Enums;
 using KYCDocumentAPI.ML.Enums;
 using KYCDocumentAPI.ML.Models;
+using KYCDocumentAPI.ML.OCR.Models;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
@@ -391,7 +392,7 @@ namespace KYCDocumentAPI.ML.Services
             }
         }
 
-        private async Task<FraudDetectionInput> CreateFraudDetectionInputAsync(string filePath, DocumentType documentType, OCRResult ocrResult, ImageQualityResult qualityResult)
+        private async Task<FraudDetectionInput> CreateFraudDetectionInputAsync(string filePath, DocumentType documentType, EnhancedOCRResult ocrResult, ImageQualityMetrics qualityResult)
         {
             try
             {
@@ -406,7 +407,7 @@ namespace KYCDocumentAPI.ML.Services
                     FileSize = fileInfo.Length,
                     FileExtension = fileInfo.Extension.ToLowerInvariant(),
 
-                    OCRConfidence = ocrResult.Confidence,
+                    OCRConfidence = ocrResult.OverallConfidence,
                     TextQuality = ocrResult.Success ? 0.8f : 0.3f,
                     TextLength = ocrResult.ExtractedText.Length,
                     LanguageConsistency = CalculateLanguageConsistency(ocrResult.ExtractedText),
@@ -577,7 +578,7 @@ namespace KYCDocumentAPI.ML.Services
             }
         }
 
-        private async Task<List<ValidationCheck>> ValidateImageQualityAsync(ImageQualityResult qualityResult)
+        private async Task<List<ValidationCheck>> ValidateImageQualityAsync(ImageQualityMetrics qualityResult)
         {
             try
             {
@@ -628,7 +629,7 @@ namespace KYCDocumentAPI.ML.Services
             }
         }
 
-        private async Task<List<ValidationCheck>> ValidateTextQualityAsync(OCRResult ocrResult, DocumentType documentType)
+        private async Task<List<ValidationCheck>> ValidateTextQualityAsync(EnhancedOCRResult ocrResult, DocumentType documentType)
         {
             try
             {
@@ -652,12 +653,12 @@ namespace KYCDocumentAPI.ML.Services
                     {
                         CheckName = "OCR_Confidence",
                         Category = "Text_Quality",
-                        Passed = ocrResult.Confidence >= 0.7f,
-                        Score = ocrResult.Confidence,
-                        Description = $"OCR confidence: {Math.Round(ocrResult.Confidence * 100, 1)}%",
-                        Details = ocrResult.Confidence >= 0.8f ? "High confidence" :
-                                 ocrResult.Confidence >= 0.6f ? "Medium confidence" : "Low confidence",
-                        Severity = ocrResult.Confidence >= 0.7f ? CheckSeverity.Info : CheckSeverity.Medium
+                        Passed = ocrResult.OverallConfidence >= 0.7f,
+                        Score = ocrResult.OverallConfidence,
+                        Description = $"OCR confidence: {Math.Round(ocrResult.OverallConfidence * 100, 1)}%",
+                        Details = ocrResult.OverallConfidence >= 0.8f ? "High confidence" :
+                                 ocrResult.OverallConfidence >= 0.6f ? "Medium confidence" : "Low confidence",
+                        Severity = ocrResult.OverallConfidence >= 0.7f ? CheckSeverity.Info : CheckSeverity.Medium
                     });
 
                     var textLength = ocrResult.ExtractedText.Length;

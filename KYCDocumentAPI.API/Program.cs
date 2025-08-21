@@ -1,5 +1,6 @@
 using KYCDocumentAPI.API.Middleware;
 using KYCDocumentAPI.Infrastructure.Data;
+using KYCDocumentAPI.ML.OCR.Services;
 using KYCDocumentAPI.ML.Services;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
@@ -93,15 +94,38 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.EnableDetailedErrors(builder.Environment.IsDevelopment());
 });
 
+// Register OCR Configuration
+builder.Services.AddSingleton(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    return new KYCDocumentAPI.ML.OCR.Models.OCRConfiguration
+    {
+        TesseractPath = configuration["OCRSettings:TesseractPath"] ?? "tesseract",
+        TesseractDataPath = configuration["OCRSettings:TesseractDataPath"] ?? "",
+        PythonPath = configuration["OCRSettings:PythonPath"] ?? "python",
+        DefaultLanguages = configuration.GetSection("OCRSettings:DefaultLanguages").Get<List<string>>() ?? new List<string> { "en", "hi" },
+        ProcessingTimeout = configuration.GetValue<int>("OCRSettings:ProcessingTimeout", 30000),
+        MaxRetries = configuration.GetValue<int>("OCRSettings:MaxRetries", 3),
+        PreprocessImages = configuration.GetValue<bool>("OCRSettings:PreprocessImages", true),
+        EnableParallelProcessing = configuration.GetValue<bool>("OCRSettings:EnableParallelProcessing", true),
+        CacheResults = configuration.GetValue<bool>("OCRSettings:CacheResults", true)
+    };
+});
+
 
 // Register services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
-builder.Services.AddScoped<IOCRService, MockOCRService>();
+//builder.Services.AddScoped<IOCRService, MockOCRService>();
 builder.Services.AddScoped<ITextPatternService, TextPatternService>();
 builder.Services.AddSingleton<IDocumentClassificationService, DocumentClassificationService>();
 builder.Services.AddScoped<IDocumentValidationService, DocumentValidationService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddScoped<IOCREngine, TesseractOCREngine>();
+builder.Services.AddScoped<IOCREngine, EasyOCREngine>();
+builder.Services.AddScoped<IOCREngineFactory, OCREngineFactory>();
+builder.Services.AddScoped<IEnhancedOCRService, EnhancedOCRService>();
+builder.Services.AddScoped<IOCRService, ProductionOCRService>();
 
 
 // Configure CORS for production

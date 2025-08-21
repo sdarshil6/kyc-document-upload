@@ -43,7 +43,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
                 IOCREngine engine = engineType switch
                 {
                     OCREngine.EasyOCR => _serviceProvider.GetRequiredService<EasyOCREngine>(),
-                    OCREngine.Tesseract => _serviceProvider.GetRequiredService<TesseractEngine>(),
+                    OCREngine.Tesseract => _serviceProvider.GetRequiredService<TesseractOCREngine>(),
                     _ => throw new NotSupportedException($"OCR engine {engineType} is not supported")
                 };
 

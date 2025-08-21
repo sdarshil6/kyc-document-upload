@@ -53,7 +53,7 @@ namespace KYCDocumentAPI.API.Controllers
                 {
                     Success = ocrResult.Success,
                     ExtractedText = ocrResult.ExtractedText,
-                    Confidence = Math.Round(ocrResult.Confidence * 100, 1),
+                    Confidence = Math.Round(ocrResult.OverallConfidence * 100, 1),
                     DetectedLanguages = ocrResult.DetectedLanguages,
                     ProcessingTimeMs = ocrResult.ProcessingTime.TotalMilliseconds,
                     CharacterCount = ocrResult.ExtractedText.Length,

@@ -84,7 +84,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 var result = new DocumentExtractionResult
                 {
                     Success = true,
-                    ExtractionConfidence = ocrResult.Confidence * 0.7 + patternResult.Confidence * 0.3,
+                    ExtractionConfidence = ocrResult.OverallConfidence * 0.7 + patternResult.Confidence * 0.3,
                     RawData = ocrResult.ExtractedText
                 };
 

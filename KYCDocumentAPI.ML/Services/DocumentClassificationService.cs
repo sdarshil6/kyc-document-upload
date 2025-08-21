@@ -158,7 +158,7 @@ namespace KYCDocumentAPI.ML.Services
                     HasAadhaarPattern = patternResult.HasAadhaarPattern,
                     HasPANPattern = patternResult.HasPANPattern,
                     HasPassportPattern = patternResult.HasPassportPattern,
-                    TextConfidence = ocrResult.Confidence,
+                    TextConfidence = ocrResult.OverallConfidence,
                     ImageQuality = qualityResult.OverallQuality
                 };
 
