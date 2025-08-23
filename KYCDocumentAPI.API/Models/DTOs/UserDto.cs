@@ -14,8 +14,7 @@ namespace KYCDocumentAPI.API.Models.DTOs
         public string? City { get; set; }
         public State? State { get; set; }
         public string? PinCode { get; set; }
-        public int DocumentsCount { get; set; }
-        public int VerifiedDocuments { get; set; }
+        public int DocumentsCount { get; set; }      
         public DateTime CreatedAt { get; set; }
     }
 }

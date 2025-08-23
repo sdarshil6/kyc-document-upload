@@ -28,11 +28,7 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var totalUsers = await _context.Users.CountAsync();
-                var totalDocuments = await _context.Documents.CountAsync();
-                var verifiedDocuments = await _context.Documents.CountAsync(d => d.Status == DocumentStatus.Verified);
-                var pendingVerifications = await _context.Documents.CountAsync(d => d.Status == DocumentStatus.Processing);
-                var fraudulentDocuments = await _context.VerificationResults
-                    .CountAsync(v => v.Status == VerificationStatus.Fraudulent);
+                var totalDocuments = await _context.Documents.CountAsync();                                
 
                 // Document type distribution
                 var documentTypeDistribution = await _context.Documents
@@ -65,10 +61,7 @@ namespace KYCDocumentAPI.API.Controllers
                 var dashboardResponse = new DashboardResponse
                 {
                     TotalUsers = totalUsers,
-                    TotalDocuments = totalDocuments,
-                    VerifiedDocuments = verifiedDocuments,
-                    PendingVerifications = pendingVerifications,
-                    FraudulentDocuments = fraudulentDocuments,
+                    TotalDocuments = totalDocuments,                         
                     DocumentTypeDistribution = documentTypeDistribution,
                     StateDistribution = stateDistribution,
                     RecentActivities = recentActivities

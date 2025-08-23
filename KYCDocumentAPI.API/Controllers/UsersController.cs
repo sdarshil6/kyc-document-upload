@@ -31,8 +31,7 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var users = await _context.Users
-                    .Include(u => u.Documents)
-                    .Include(u => u.KYCVerifications)
+                    .Include(u => u.Documents)                 
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .Select(u => new UserDto
@@ -47,8 +46,7 @@ namespace KYCDocumentAPI.API.Controllers
                         City = u.City,
                         State = u.State,
                         PinCode = u.PinCode,
-                        DocumentsCount = u.Documents.Count,
-                        VerifiedDocuments = u.Documents.Count(d => d.Status == Core.Enums.DocumentStatus.Verified),
+                        DocumentsCount = u.Documents.Count,                       
                         CreatedAt = u.CreatedAt
                     })
                     .ToListAsync();
@@ -71,8 +69,7 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var user = await _context.Users
-                    .Include(u => u.Documents)
-                    .Include(u => u.KYCVerifications)
+                    .Include(u => u.Documents)                    
                     .FirstOrDefaultAsync(u => u.Id == id);
 
                 if (user == null)
@@ -92,8 +89,7 @@ namespace KYCDocumentAPI.API.Controllers
                     City = user.City,
                     State = user.State,
                     PinCode = user.PinCode,
-                    DocumentsCount = user.Documents.Count,
-                    VerifiedDocuments = user.Documents.Count(d => d.Status == Core.Enums.DocumentStatus.Verified),
+                    DocumentsCount = user.Documents.Count,                   
                     CreatedAt = user.CreatedAt
                 };
 
@@ -151,8 +147,7 @@ namespace KYCDocumentAPI.API.Controllers
                     City = user.City,
                     State = user.State,
                     PinCode = user.PinCode,
-                    DocumentsCount = 0,
-                    VerifiedDocuments = 0,
+                    DocumentsCount = 0,                    
                     CreatedAt = user.CreatedAt
                 };
 

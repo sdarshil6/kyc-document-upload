@@ -101,8 +101,7 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var documents = await _context.Documents
-                    .Include(d => d.DocumentData)
-                    .Include(d => d.VerificationResults.OrderByDescending(v => v.CreatedAt).Take(1))
+                    .Include(d => d.DocumentData)                    
                     .Where(d => d.UserId == userId)
                     .Select(d => new DocumentDto
                     {
@@ -128,23 +127,7 @@ namespace KYCDocumentAPI.API.Controllers
                             State = d.DocumentData.State,
                             PinCode = d.DocumentData.PinCode,
                             ExtractionConfidence = d.DocumentData.ExtractionConfidence
-                        } : null,
-                        LatestVerification = d.VerificationResults.FirstOrDefault() != null ? new VerificationResultDto
-                        {
-                            Id = d.VerificationResults.First().Id,
-                            Status = d.VerificationResults.First().Status,
-                            AuthenticityScore = d.VerificationResults.First().AuthenticityScore,
-                            QualityScore = d.VerificationResults.First().QualityScore,
-                            ConsistencyScore = d.VerificationResults.First().ConsistencyScore,
-                            FraudScore = d.VerificationResults.First().FraudScore,
-                            IsFormatValid = d.VerificationResults.First().IsFormatValid,
-                            IsDataConsistent = d.VerificationResults.First().IsDataConsistent,
-                            IsImageClear = d.VerificationResults.First().IsImageClear,
-                            IsTampered = d.VerificationResults.First().IsTampered,
-                            FailureReasons = d.VerificationResults.First().FailureReasons,
-                            AIInsights = d.VerificationResults.First().AIInsights,
-                            ProcessedAt = d.VerificationResults.First().ProcessedAt
-                        } : null
+                        } : null                        
                     })
                     .ToListAsync();
 
@@ -166,8 +149,7 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var document = await _context.Documents
-                    .Include(d => d.DocumentData)
-                    .Include(d => d.VerificationResults.OrderByDescending(v => v.CreatedAt))
+                    .Include(d => d.DocumentData)                    
                     .FirstOrDefaultAsync(d => d.Id == id);
 
                 if (document == null)
@@ -199,23 +181,7 @@ namespace KYCDocumentAPI.API.Controllers
                         State = document.DocumentData.State,
                         PinCode = document.DocumentData.PinCode,
                         ExtractionConfidence = document.DocumentData.ExtractionConfidence
-                    } : null,
-                    LatestVerification = document.VerificationResults.FirstOrDefault() != null ? new VerificationResultDto
-                    {
-                        Id = document.VerificationResults.First().Id,
-                        Status = document.VerificationResults.First().Status,
-                        AuthenticityScore = document.VerificationResults.First().AuthenticityScore,
-                        QualityScore = document.VerificationResults.First().QualityScore,
-                        ConsistencyScore = document.VerificationResults.First().ConsistencyScore,
-                        FraudScore = document.VerificationResults.First().FraudScore,
-                        IsFormatValid = document.VerificationResults.First().IsFormatValid,
-                        IsDataConsistent = document.VerificationResults.First().IsDataConsistent,
-                        IsImageClear = document.VerificationResults.First().IsImageClear,
-                        IsTampered = document.VerificationResults.First().IsTampered,
-                        FailureReasons = document.VerificationResults.First().FailureReasons,
-                        AIInsights = document.VerificationResults.First().AIInsights,
-                        ProcessedAt = document.VerificationResults.First().ProcessedAt
-                    } : null
+                    } : null                    
                 };
 
                 return Ok(ApiResponse<DocumentDto>.SuccessResponse(documentDto, "Document retrieved successfully"));

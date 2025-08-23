@@ -119,13 +119,10 @@ builder.Services.AddSingleton(serviceProvider =>
 // Register services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
-//builder.Services.AddScoped<IOCRService, MockOCRService>();
 builder.Services.AddScoped<ITextPatternService, TextPatternService>();
 builder.Services.AddScoped<IDocumentClassificationService, DocumentClassificationService>();
-builder.Services.AddScoped<IDocumentValidationService, DocumentValidationService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddSingleton<TesseractOCREngine>();
-builder.Services.AddSingleton<EasyOCREngine>();
 builder.Services.AddScoped<IOCREngineFactory, OCREngineFactory>();
 builder.Services.AddScoped<IEnhancedOCRService, EnhancedOCRService>();
 builder.Services.AddScoped<IOCRService, ProductionOCRService>();

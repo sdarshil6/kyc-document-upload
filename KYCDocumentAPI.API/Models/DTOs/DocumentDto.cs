@@ -11,7 +11,6 @@ namespace KYCDocumentAPI.API.Models.DTOs
         public long FileSize { get; set; }
         public DocumentStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
-        public DocumentDataDto? ExtractedData { get; set; }
-        public VerificationResultDto? LatestVerification { get; set; }
+        public DocumentDataDto? ExtractedData { get; set; }       
     }
 }
