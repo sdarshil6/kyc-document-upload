@@ -148,14 +148,11 @@ namespace KYCDocumentAPI.API.Controllers
         {
             try
             {
-                var document = await _context.Documents
-                    .Include(d => d.DocumentData)                    
-                    .FirstOrDefaultAsync(d => d.Id == id);
+                var document = await _context.Documents.Include(d => d.DocumentData).FirstOrDefaultAsync(d => d.Id == id);
 
-                if (document == null)
-                {
+                if (document == null)                
                     return NotFound(ApiResponse<DocumentDto>.ErrorResponse("Document not found"));
-                }
+                
 
                 var documentDto = new DocumentDto
                 {
@@ -225,17 +222,15 @@ namespace KYCDocumentAPI.API.Controllers
         /// <summary>
         /// Delete a document
         /// </summary>
-        [HttpDelete("{id}")]
-        public async Task<ActionResult<ApiResponse<bool>>> DeleteDocument(Guid id)
+        [HttpDelete("documentId/{documentId}")]
+        public async Task<ActionResult<ApiResponse<bool>>> DeleteDocument(Guid documentId)
         {
             try
             {
-                var document = await _context.Documents.FindAsync(id);
-                if (document == null)
-                {
+                var document = await _context.Documents.FindAsync(documentId);
+                if (document == null)                
                     return NotFound(ApiResponse<bool>.ErrorResponse("Document not found"));
-                }
-
+                
                 // Delete file from storage
                 await _fileStorageService.DeleteFileAsync(document.FilePath);
 
@@ -247,8 +242,47 @@ namespace KYCDocumentAPI.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting document {DocumentId}", id);
+                _logger.LogError(ex, "Error deleting document {DocumentId}", documentId);
                 return StatusCode(500, ApiResponse<bool>.ErrorResponse("Internal server error"));
+            }
+        }
+
+        /// <summary>
+        /// Delete all documents of user
+        /// </summary>
+        [HttpDelete("userId/{userId}")]
+        public async Task<ActionResult<ApiResponse<bool>>> DeleteAllDocumentsOfUser(Guid userId)
+        {
+            try
+            {
+                var user = await _context.Users.Include(u => u.Documents).AsSplitQuery().FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null)
+                    return NotFound(ApiResponse<bool>.ErrorResponse("User not found."));
+                else if (user.Documents == null || user.Documents.Count == 0)
+                    return NotFound(ApiResponse<bool>.ErrorResponse("User has no documents."));
+                                
+                foreach(var document in user.Documents)
+                {
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(document.FilePath) && System.IO.File.Exists(document.FilePath))
+                            await _fileStorageService.DeleteFileAsync(document.FilePath);
+                        _context.Documents.Remove(document);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError("Error occured inside DeleteAllDocumentsOfUser() in DocumentsController.cs while deleting document with documentId " + document.Id + " : " + ex);
+                        throw;
+                    }
+                }                                                            
+                await _context.SaveChangesAsync();
+
+                return Ok(ApiResponse<bool>.SuccessResponse(true, "Documents of user with userId " + userId + " are deleted successfully."));
+            }           
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside DeleteAllDocumentsOfUser() in DocumentsController.cs : " + ex);
+                return StatusCode(500, ApiResponse<bool>.ErrorResponse("Something bad happened."));
             }
         }
     }

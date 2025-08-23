@@ -8,19 +8,13 @@ namespace KYCDocumentAPI.API.Controllers
     public class AITestController : ControllerBase
     {
         private readonly IDocumentClassificationService _classificationService;
-        private readonly IOCRService _ocrService;
-        private readonly ITextPatternService _textPatternService;
+        private readonly IOCRService _ocrService;        
         private readonly ILogger<AITestController> _logger;
 
-        public AITestController(
-            IDocumentClassificationService classificationService,
-            IOCRService ocrService,
-            ITextPatternService textPatternService,
-            ILogger<AITestController> logger)
+        public AITestController(IDocumentClassificationService classificationService, IOCRService ocrService, ILogger<AITestController> logger)
         {
             _classificationService = classificationService;
-            _ocrService = ocrService;
-            _textPatternService = textPatternService;
+            _ocrService = ocrService;            
             _logger = logger;
         }
 
@@ -36,8 +30,8 @@ namespace KYCDocumentAPI.API.Controllers
                 if (request.File == null || request.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
-                // Save file temporarily
-                var tempPath = Path.GetTempFileName();
+                var ext = ValidateUploadedFileAndGetExtension(request.File.FileName);
+                var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ext);
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     await request.File.CopyToAsync(stream);
@@ -62,6 +56,11 @@ namespace KYCDocumentAPI.API.Controllers
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "OCR processing completed"));
             }
+            catch (NotSupportedException ex)
+            {
+                _logger.LogError("Error occured inside TestTesseractDirect() in AITestController.cs : " + ex);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in OCR test");
@@ -81,8 +80,8 @@ namespace KYCDocumentAPI.API.Controllers
                 if (classifyRequest.File == null || classifyRequest.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
-                // Save file temporarily
-                var tempPath = Path.GetTempFileName();
+                var ext = ValidateUploadedFileAndGetExtension(classifyRequest.File.FileName);
+                var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ext);
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     await classifyRequest.File.CopyToAsync(stream);
@@ -109,57 +108,17 @@ namespace KYCDocumentAPI.API.Controllers
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Document classification completed"));
             }
+            catch (NotSupportedException ex)
+            {
+                _logger.LogError("Error occured inside TestTesseractDirect() in AITestController.cs : " + ex);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in classification test");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("Classification test failed"));
             }
-        }
-
-        /// <summary>
-        /// Test text pattern recognition with raw text
-        /// </summary>
-        [HttpPost("patterns")]
-        public async Task<ActionResult<ApiResponse<object>>> TestPatterns([FromBody] TestPatternsRequest request)
-        {
-            try
-            {
-                await Task.CompletedTask;
-
-                var patternResult = _textPatternService.AnalyzeText(request.Text, request.FileName ?? "");
-
-                var response = new
-                {
-                    PredictedDocumentType = patternResult.PredictedDocumentType.ToString(),
-                    Confidence = Math.Round(patternResult.Confidence * 100, 1),
-                    DocumentTypeConfidences = patternResult.DocumentTypeConfidences.ToDictionary(
-                        x => x.Key.ToString(),
-                        x => Math.Round(x.Value * 100, 1)
-                    ),
-                    ExtractedNumbers = new
-                    {
-                        AadhaarNumber = patternResult.AadhaarNumber,
-                        PANNumber = patternResult.PANNumber,
-                        PassportNumber = patternResult.PassportNumber
-                    },
-                    PatternFlags = new
-                    {
-                        HasAadhaarPattern = patternResult.HasAadhaarPattern,
-                        HasPANPattern = patternResult.HasPANPattern,
-                        HasPassportPattern = patternResult.HasPassportPattern
-                    },
-                    TextLength = request.Text.Length,
-                    ProcessingNotes = "Pattern analysis completed"
-                };
-
-                return Ok(ApiResponse<object>.SuccessResponse(response, "Text pattern analysis completed"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in pattern test");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("Pattern test failed"));
-            }
-        }
+        }        
 
         /// <summary>
         /// Test image quality analysis
@@ -173,8 +132,8 @@ namespace KYCDocumentAPI.API.Controllers
                 if (qualityRequest.File == null || qualityRequest.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
-                // Save file temporarily
-                var tempPath = Path.GetTempFileName();
+                var ext = ValidateUploadedFileAndGetExtension(qualityRequest.File.FileName);
+                var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ext);
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
                     await qualityRequest.File.CopyToAsync(stream);
@@ -211,86 +170,33 @@ namespace KYCDocumentAPI.API.Controllers
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Image quality analysis completed"));
             }
+            catch (NotSupportedException ex)
+            {
+                _logger.LogError("Error occured inside TestTesseractDirect() in AITestController.cs : " + ex);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in quality test");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("Quality test failed"));
             }
         }
-
-        /// <summary>
-        /// Get AI service status and capabilities
-        /// </summary>
-        [HttpGet("status")]
-        public async Task<ActionResult<ApiResponse<object>>> GetAIStatus()
+        
+        private string ValidateUploadedFileAndGetExtension(string fileName)
         {
             try
             {
-                await Task.CompletedTask;
-
-                var status = new
-                {
-                    Services = new
-                    {
-                        DocumentClassification = new
-                        {
-                            Status = _classificationService.IsModelReady ? "Ready" : "Not Ready",
-                            ModelType = "Rule-based + Pattern Recognition",
-                            SupportedDocuments = new[]
-                            {
-                                "Aadhaar", "PAN", "Passport", "Driving License",
-                                "Voter ID", "Ration Card", "Bank Passbook", "Utility Bill"
-                            }
-                        },
-                        OCR = new
-                        {
-                            Status = "Active",
-                            Engine = "Mock OCR Service",
-                            SupportedLanguages = new[] { "English", "Hindi" },
-                            SupportedFormats = new[] { ".jpg", ".jpeg", ".png", ".pdf" }
-                        },
-                        PatternRecognition = new
-                        {
-                            Status = "Active",
-                            Capabilities = new[]
-                            {
-                                "Aadhaar Number Extraction", "PAN Number Extraction",
-                                "Passport Number Extraction", "Document Type Classification"
-                            }
-                        },
-                        ImageQuality = new
-                        {
-                            Status = "Active",
-                            Metrics = new[] { "Brightness", "Contrast", "Sharpness", "Noise Level" }
-                        }
-                    },
-                    Performance = new
-                    {
-                        AverageProcessingTime = "1-3 seconds",
-                        AccuracyRate = "85-95%",
-                        SupportedFileSize = "Up to 10MB"
-                    },
-                    Limitations = new[]
-                    {
-                        "Currently using mock OCR - replace with real OCR service for production",
-                        "Pattern recognition is rule-based - train ML models for better accuracy",
-                        "Image quality analysis is simulated - integrate with actual image processing library"
-                    },
-                    NextSteps = new[]
-                    {
-                        "Integrate Azure Computer Vision or Tesseract OCR",
-                        "Train custom ML.NET models with real document datasets",
-                        "Add fraud detection algorithms",
-                        "Implement advanced image preprocessing"
-                    }
-                };
-
-                return Ok(ApiResponse<object>.SuccessResponse(status, "AI service status retrieved"));
+                var ext = Path.GetExtension(fileName);
+                if (string.IsNullOrWhiteSpace(ext))
+                    throw new NotSupportedException("No image extension found. Invalid file uploaded. Kindly upload valid image.");
+                else if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                    throw new NotSupportedException("PDF files are not supported. Please upload an image file (PNG,JPG,JPEG,TIFF).");
+                return ext;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting AI status");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to get AI status"));
+                _logger.LogError("Error occured inside ValidateUploadedFileAndGetExtension() in AITestController.cs : " + ex);
+                throw;
             }
         }
     }
