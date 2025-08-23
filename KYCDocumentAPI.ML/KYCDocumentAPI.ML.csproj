@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Folder Include="Data\" />
+    <Folder Include="Enums\" />
     <Folder Include="OCR\Engines\" />
     <Folder Include="TrainingData\" />
   </ItemGroup>

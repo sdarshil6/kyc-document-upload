@@ -2,11 +2,9 @@
 using KYCDocumentAPI.Core.Enums;
 using KYCDocumentAPI.Infrastructure.Data;
 using KYCDocumentAPI.Infrastructure.Models;
-using KYCDocumentAPI.ML.Enums;
 using KYCDocumentAPI.ML.Models;
 using KYCDocumentAPI.ML.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
@@ -18,23 +16,15 @@ namespace KYCDocumentAPI.Infrastructure.Services
         private readonly ILogger<DocumentProcessingService> _logger;
         private readonly IDocumentClassificationService _classificationService;
         private readonly IOCRService _ocrService;
-        private readonly ITextPatternService _textPatternService;
-        private readonly IDocumentValidationService _validationService;        
-        public DocumentProcessingService(
-            ApplicationDbContext context,
-            ILogger<DocumentProcessingService> logger,
-            IDocumentClassificationService classificationService,
-            IOCRService ocrService,
-            ITextPatternService textPatternService,
-            IDocumentValidationService validationService)
+        private readonly ITextPatternService _textPatternService;      
+        public DocumentProcessingService(ApplicationDbContext context, ILogger<DocumentProcessingService> logger, IDocumentClassificationService classificationService, IOCRService ocrService, ITextPatternService textPatternService)
         {
             _context = context;
             _logger = logger;
             _classificationService = classificationService;
             _ocrService = ocrService;
-            _textPatternService = textPatternService;
-            _validationService = validationService;
-                  }
+            _textPatternService = textPatternService;         
+        }
 
         private async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
         {
@@ -458,52 +448,6 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 throw;
             }
         }
-
-        private string GenerateAIInsights(DocumentValidationResult validationResult)
-        {
-            try
-            {
-                var insights = new List<string>();
-
-                // Quality insights
-                if (validationResult.Metrics.QualityScore >= 0.8f)
-                    insights.Add("Excellent image quality detected");
-                else if (validationResult.Metrics.QualityScore < 0.5f)
-                    insights.Add("Poor image quality may affect accuracy");
-
-                // Authenticity insights
-                if (validationResult.Metrics.AuthenticityScore >= 0.9f)
-                    insights.Add("Strong authenticity indicators present");
-                else if (validationResult.Metrics.AuthenticityScore < 0.6f)
-                    insights.Add("Limited authenticity indicators found");
-
-                // Fraud risk insights
-                if (validationResult.Metrics.FraudRiskScore > 0.7f)
-                    insights.Add("High fraud risk - multiple red flags detected");
-                else if (validationResult.Metrics.FraudRiskScore > 0.4f)
-                    insights.Add("Medium fraud risk - some concerns identified");
-                else
-                    insights.Add("Low fraud risk - document appears legitimate");
-
-                // Specific check insights
-                var failedCriticalChecks = validationResult.Checks
-                    .Where(c => !c.Passed && c.Severity >= CheckSeverity.High)
-                    .ToList();
-
-                if (failedCriticalChecks.Any())
-                    insights.Add($"Critical issues: {string.Join(", ", failedCriticalChecks.Select(c => c.CheckName))}");
-
-                // Positive indicators
-                if (validationResult.Metrics.PositiveIndicators.Any())
-                    insights.Add($"Positive indicators: {string.Join(", ", validationResult.Metrics.PositiveIndicators)}");
-
-                return insights.Any() ? string.Join(". ", insights) + "." : "Document processed successfully";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error occurred inside GenerateAIInsights() in DocumentProcessingService.cs : " + ex);
-                throw;
-            }
-        }
+        
     }
 }

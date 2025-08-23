@@ -1,4 +1,5 @@
-﻿using KYCDocumentAPI.ML.OCR.Enums;
+﻿/*
+using KYCDocumentAPI.ML.OCR.Enums;
 using KYCDocumentAPI.ML.OCR.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -603,3 +604,4 @@ namespace KYCDocumentAPI.ML.OCR.Services
         }
     }
 }
+*/

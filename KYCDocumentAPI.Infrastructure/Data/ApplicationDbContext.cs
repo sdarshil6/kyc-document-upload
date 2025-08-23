@@ -13,9 +13,7 @@ namespace KYCDocumentAPI.Infrastructure.Data
         // DbSets
         public DbSet<User> Users { get; set; }
         public DbSet<Document> Documents { get; set; }
-        public DbSet<DocumentData> DocumentData { get; set; }
-        public DbSet<KYCVerification> KYCVerifications { get; set; }
-        public DbSet<VerificationResult> VerificationResults { get; set; }
+        public DbSet<DocumentData> DocumentData { get; set; }        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -57,37 +55,7 @@ namespace KYCDocumentAPI.Infrastructure.Data
                       .WithOne(d => d.DocumentData)
                       .HasForeignKey<DocumentData>(dd => dd.DocumentId)
                       .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // Configure KYCVerification entity
-            modelBuilder.Entity<KYCVerification>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Status).HasConversion<string>();
-
-                entity.HasOne(k => k.User)
-                      .WithMany(u => u.KYCVerifications)
-                      .HasForeignKey(k => k.UserId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // Configure VerificationResult entity
-            modelBuilder.Entity<VerificationResult>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Status).HasConversion<string>();
-
-                entity.HasOne(vr => vr.Document)
-                      .WithMany(d => d.VerificationResults)
-                      .HasForeignKey(vr => vr.DocumentId)
-                      .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(vr => vr.KYCVerification)
-                      .WithMany(k => k.VerificationResults)
-                      .HasForeignKey(vr => vr.KYCVerificationId)
-                      .OnDelete(DeleteBehavior.SetNull);
-            });
-
+            });                      
             // Seed data for testing
             SeedData(modelBuilder);
         }

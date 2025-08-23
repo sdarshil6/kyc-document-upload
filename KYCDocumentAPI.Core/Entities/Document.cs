@@ -30,7 +30,6 @@ namespace KYCDocumentAPI.Core.Entities
         [ForeignKey("UserId")]
         public virtual User User { get; set; } = null!;
 
-        public virtual DocumentData? DocumentData { get; set; }
-        public virtual ICollection<VerificationResult> VerificationResults { get; set; } = new List<VerificationResult>();
+        public virtual DocumentData? DocumentData { get; set; }        
     }
 }

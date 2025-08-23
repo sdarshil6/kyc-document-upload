@@ -35,7 +35,6 @@ namespace KYCDocumentAPI.Core.Entities
         [MaxLength(10)]
         public string? PinCode { get; set; }
         
-        public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
-        public virtual ICollection<KYCVerification> KYCVerifications { get; set; } = new List<KYCVerification>();
+        public virtual ICollection<Document> Documents { get; set; } = new List<Document>();        
     }
 }
