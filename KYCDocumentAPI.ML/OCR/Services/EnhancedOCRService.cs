@@ -30,48 +30,46 @@ namespace KYCDocumentAPI.ML.OCR.Services
                 options ??= CreateDefaultProcessingOptions();
 
                 _logger.LogInformation("Starting enhanced OCR processing for {ImagePath}", imagePath);
-                
-                var qualityMetrics = await AnalyzeImageQualityAsync(imagePath);
-               
-                var optimalEngine = await _engineFactory.GetOptimalEngineAsync("unknown", qualityMetrics);
-                
+
+                var qualityMetrics = await AnalyzeImageQualityAsync(imagePath);              
+
                 var result = new EnhancedOCRResult
                 {
-                    PrimaryEngine = optimalEngine,
+                    PrimaryEngine = OCREngine.Tesseract,
                     QualityMetrics = qualityMetrics,
                     ProcessingStats = new ProcessingStatistics()
                 };
-               
-                var primaryEngineInstance = _engineFactory.CreateEngine(optimalEngine);
+
+                var primaryEngineInstance = _engineFactory.CreateEngine();
                 var primaryResult = await primaryEngineInstance.ExtractTextAsync(imagePath, options);
                 result.EngineResults.Add(primaryResult);
 
                 if (primaryResult.Success && primaryResult.Confidence >= options.MinimumConfidence)
-                {                    
+                {
                     result.Success = true;
                     result.ExtractedText = primaryResult.ExtractedText;
                     result.OverallConfidence = primaryResult.Confidence;
                     result.ProcessingStats.PrimaryEngineTime = primaryResult.ProcessingTime;
                 }
-                else if (options.EnableFallback)
-                {                    
-                    _logger.LogInformation("Primary engine failed or low confidence, trying fallback engine");
+                //else if (options.EnableFallback)
+                //{
+                //    _logger.LogInformation("Primary engine failed or low confidence, trying fallback engine");
 
-                    var fallbackEngine = GetFallbackEngine(optimalEngine);
-                    result.FallbackEngine = fallbackEngine;
+                //    var fallbackEngine = GetFallbackEngine(optimalEngine);
+                //    result.FallbackEngine = fallbackEngine;
 
-                    var fallbackEngineInstance = _engineFactory.CreateEngine(fallbackEngine);
-                    var fallbackResult = await fallbackEngineInstance.ExtractTextAsync(imagePath, options);
-                    result.EngineResults.Add(fallbackResult);
-                    result.ProcessingStats.FallbackEngineTime = fallbackResult.ProcessingTime;
-                    result.ProcessingStats.UsedFallback = true;
-                    
-                    var bestResult = SelectBestResult(result.EngineResults);
-                    result.Success = bestResult.Success;
-                    result.ExtractedText = bestResult.ExtractedText;
-                    result.OverallConfidence = bestResult.Confidence;
-                }
-                
+                //    var fallbackEngineInstance = _engineFactory.CreateEngine(fallbackEngine);
+                //    var fallbackResult = await fallbackEngineInstance.ExtractTextAsync(imagePath, options);
+                //    result.EngineResults.Add(fallbackResult);
+                //    result.ProcessingStats.FallbackEngineTime = fallbackResult.ProcessingTime;
+                //    result.ProcessingStats.UsedFallback = true;
+
+                //    var bestResult = SelectBestResult(result.EngineResults);
+                //    result.Success = bestResult.Success;
+                //    result.ExtractedText = bestResult.ExtractedText;
+                //    result.OverallConfidence = bestResult.Confidence;
+                //}
+
                 if (result.Success && !string.IsNullOrEmpty(result.ExtractedText))
                 {
                     result.TextAnalysis = AnalyzeExtractedText(result.ExtractedText, result.EngineResults);
@@ -81,7 +79,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
                 stopwatch.Stop();
                 result.ProcessingTime = stopwatch.Elapsed;
                 result.ProcessingStats.TotalProcessingTime = stopwatch.Elapsed;
-                
+
                 result.Metadata = CreateMetadata(result, options);
 
                 _logger.LogInformation("Enhanced OCR completed in {ProcessingTime}ms. Success: {Success}, Confidence: {Confidence}%",
@@ -109,7 +107,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
         {
             var tempPath = Path.GetTempFileName();
             try
-            {                
+            {
                 using (var fileStream = new FileStream(tempPath, FileMode.Create))
                 {
                     await imageStream.CopyToAsync(fileStream);
@@ -129,9 +127,9 @@ namespace KYCDocumentAPI.ML.OCR.Services
         public async Task<ImageQualityMetrics> AnalyzeImageQualityAsync(string imagePath)
         {
             try
-            {                
+            {
                 var fileInfo = new FileInfo(imagePath);
-              
+
                 var random = new Random();
 
                 var metrics = new ImageQualityMetrics
@@ -147,12 +145,12 @@ namespace KYCDocumentAPI.ML.OCR.Services
                                          metrics.Contrast +
                                          metrics.Sharpness +
                                          (1 - metrics.NoiseLevel)) / 4f;
-                
+
                 metrics.IsBlurry = metrics.Sharpness < 0.6f;
                 metrics.IsTooDark = metrics.Brightness < 0.4f;
                 metrics.IsTooLight = metrics.Brightness > 0.8f;
                 metrics.HasSufficientContrast = metrics.Contrast >= 0.5f;
-                
+
                 if (metrics.IsBlurry)
                     metrics.QualityIssues.Add("Image appears blurry");
 
@@ -167,7 +165,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
 
                 if (!metrics.HasSufficientContrast)
                     metrics.QualityIssues.Add("Low contrast detected");
-                
+
                 if (metrics.QualityIssues.Count == 0)
                     metrics.Recommendations.Add("Image quality is good for OCR");
                 else
@@ -220,7 +218,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
 
                 try
                 {
-                    var engine = _engineFactory.CreateEngine(engineType);
+                    var engine = _engineFactory.CreateEngine();
                     var status = await engine.GetStatusAsync();
                     statuses.Add(status);
                 }
@@ -241,26 +239,20 @@ namespace KYCDocumentAPI.ML.OCR.Services
         }
 
         public async Task<List<OCREngineCapabilities>> GetEngineCapabilitiesAsync()
-        {
-            var capabilities = new List<OCREngineCapabilities>();
-
-            foreach (var engineType in Enum.GetValues<OCREngine>())
+        {            
+            try
             {
-                if (engineType == OCREngine.Hybrid) continue;
-
-                try
-                {
-                    var engine = _engineFactory.CreateEngine(engineType);
-                    var capability = await engine.GetCapabilitiesAsync();
-                    capabilities.Add(capability);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to get capabilities for {EngineType}", engineType);
-                }
+                var capabilities = new List<OCREngineCapabilities>();
+                var engine = _engineFactory.CreateEngine();
+                var capability = await engine.GetCapabilitiesAsync();
+                capabilities.Add(capability);
+                return capabilities;
             }
-
-            return capabilities;
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GetEngineCapabilitiesAsync() in EnhancedOCRService.cs : " + ex);
+                throw;
+            }            
         }
 
         public async Task<List<EnhancedOCRResult>> ProcessBatchAsync(List<string> imagePaths, OCRProcessingOptions? options = null)
@@ -364,8 +356,8 @@ namespace KYCDocumentAPI.ML.OCR.Services
             var successfulResults = results.Where(r => r.Success).ToList();
 
             if (!successfulResults.Any())
-                return results.First(); 
-           
+                return results.First();
+
             return successfulResults.OrderByDescending(r => r.Confidence).First();
         }
 
@@ -420,7 +412,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
         private List<string> DetectLanguages(string text)
         {
             var languages = new List<string>();
-            
+
             if (text.Any(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')))
                 languages.Add("en");
 

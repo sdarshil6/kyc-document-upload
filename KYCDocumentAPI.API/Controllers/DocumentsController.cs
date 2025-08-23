@@ -71,18 +71,7 @@ namespace KYCDocumentAPI.API.Controllers
                 _context.Documents.Add(document);
                 await _context.SaveChangesAsync();
 
-                // Start background processing
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await _documentProcessingService.ProcessDocumentAsync(document.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error processing document {DocumentId}", document.Id);
-                    }
-                });
+                await _documentProcessingService.ProcessDocumentAsync(document.Id);
 
                 var response = new DocumentUploadResponse
                 {
@@ -265,51 +254,7 @@ namespace KYCDocumentAPI.API.Controllers
                 _logger.LogError(ex, "Error downloading document {DocumentId}", id);
                 return StatusCode(500, "Error downloading file");
             }
-        }
-
-        /// <summary>
-        /// Manually trigger document verification
-        /// </summary>
-        [HttpPost("{id}/verify")]
-        public async Task<ActionResult<ApiResponse<VerificationResponse>>> VerifyDocument(Guid id, VerifyDocumentRequest request)
-        {
-            try
-            {
-                var document = await _context.Documents.FindAsync(id);
-                if (document == null)
-                {
-                    return NotFound(ApiResponse<VerificationResponse>.ErrorResponse("Document not found"));
-                }
-
-                var verificationResult = await _documentProcessingService.VerifyDocumentAsync(id);
-
-                var response = new VerificationResponse
-                {
-                    DocumentId = id,
-                    Status = verificationResult.Status.ToString(),
-                    OverallScore = (verificationResult.AuthenticityScore + verificationResult.QualityScore + verificationResult.ConsistencyScore) / 3,
-                    Scores = new Dictionary<string, double>
-                    {
-                        { "Authenticity", verificationResult.AuthenticityScore },
-                        { "Quality", verificationResult.QualityScore },
-                        { "Consistency", verificationResult.ConsistencyScore },
-                        { "Fraud", verificationResult.FraudScore }
-                    },
-                    Issues = string.IsNullOrEmpty(verificationResult.FailureReasons)
-                        ? new List<string>()
-                        : verificationResult.FailureReasons.Split(',').ToList(),
-                    Summary = verificationResult.AIInsights ?? "Document verification completed",
-                    ProcessedAt = verificationResult.ProcessedAt
-                };
-
-                return Ok(ApiResponse<VerificationResponse>.SuccessResponse(response, "Document verification completed"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error verifying document {DocumentId}", id);
-                return StatusCode(500, ApiResponse<VerificationResponse>.ErrorResponse("Internal server error"));
-            }
-        }
+        }        
 
         /// <summary>
         /// Delete a document

@@ -5,6 +5,7 @@ using KYCDocumentAPI.ML.Services;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,8 +69,10 @@ builder.Services.AddSwaggerGen(c =>
         {
             Name = "MIT License",
             Url = new Uri("https://opensource.org/licenses/MIT")
-        }
-    });
+        },
+
+    }    
+    );
 
     // Add file upload support
     c.OperationFilter<SwaggerFileOperationFilter>();
@@ -82,7 +85,7 @@ builder.Services.AddSwaggerGen(c =>
         c.IncludeXmlComments(xmlPath);
     }
     // Add examples and schemas
-    c.EnableAnnotations();
+    c.EnableAnnotations();    
 });
 
 
@@ -118,11 +121,11 @@ builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
 //builder.Services.AddScoped<IOCRService, MockOCRService>();
 builder.Services.AddScoped<ITextPatternService, TextPatternService>();
-builder.Services.AddSingleton<IDocumentClassificationService, DocumentClassificationService>();
+builder.Services.AddScoped<IDocumentClassificationService, DocumentClassificationService>();
 builder.Services.AddScoped<IDocumentValidationService, DocumentValidationService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
-builder.Services.AddScoped<IOCREngine, TesseractOCREngine>();
-builder.Services.AddScoped<IOCREngine, EasyOCREngine>();
+builder.Services.AddSingleton<TesseractOCREngine>();
+builder.Services.AddSingleton<EasyOCREngine>();
 builder.Services.AddScoped<IOCREngineFactory, OCREngineFactory>();
 builder.Services.AddScoped<IEnhancedOCRService, EnhancedOCRService>();
 builder.Services.AddScoped<IOCRService, ProductionOCRService>();
@@ -169,7 +172,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "KYC Document API V1");
-        c.RoutePrefix = string.Empty; 
+        c.RoutePrefix = string.Empty;
         c.DocumentTitle = "KYC Document Management API";
         c.DefaultModelsExpandDepth(-1);
         c.DisplayRequestDuration();

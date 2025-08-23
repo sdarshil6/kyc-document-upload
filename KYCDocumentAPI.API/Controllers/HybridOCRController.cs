@@ -1,4 +1,6 @@
-﻿using KYCDocumentAPI.API.Models.Responses;
+﻿/*
+using KYCDocumentAPI.API.Models.Requests;
+using KYCDocumentAPI.API.Models.Responses;
 using KYCDocumentAPI.ML.OCR.Enums;
 using KYCDocumentAPI.ML.OCR.Models;
 using KYCDocumentAPI.ML.OCR.Services;
@@ -25,18 +27,18 @@ namespace KYCDocumentAPI.API.Controllers
         /// Process document with intelligent hybrid OCR (automatic engine selection)
         /// </summary>
         [HttpPost("smart-process")]
-        public async Task<ActionResult<ApiResponse<object>>> SmartProcess([FromForm] IFormFile file, [FromForm] string documentType = "unknown")
+        public async Task<ActionResult<ApiResponse<object>>> SmartProcess([FromForm] SmartProcessRequest req)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (req.File == null || req.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
-                // Save file temporarily
-                var tempPath = Path.GetTempFileName();
+                var ext = ValidateUploadedFileAndGetExtension(req.File.FileName);
+                var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ext);                
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
-                    await file.CopyToAsync(stream);
+                    await req.File.CopyToAsync(stream);
                 }
 
                 // Smart processing with automatic engine selection
@@ -49,7 +51,7 @@ namespace KYCDocumentAPI.API.Controllers
                     AnalyzeQuality = true,
                     ExtractWordDetails = true,
                     MinimumConfidence = 0.6f,
-                    TimeoutSeconds = 45
+                    TimeoutSeconds = 10000
                 };
 
                 var result = await _enhancedOCRService.ExtractTextAsync(tempPath, options);
@@ -61,9 +63,9 @@ namespace KYCDocumentAPI.API.Controllers
                 {
                     DocumentInfo = new
                     {
-                        FileName = file.FileName,
-                        FileSize = file.Length,
-                        DocumentType = documentType,
+                        FileName = req.File.FileName,
+                        FileSize = req.File.Length,
+                        DocumentType = req.DocumentType,
                         ProcessingMode = "Smart Hybrid"
                     },
                     ProcessingResult = new
@@ -108,10 +110,15 @@ namespace KYCDocumentAPI.API.Controllers
                         PreprocessingTime = result.ProcessingStats.ImagePreprocessingTime.TotalMilliseconds,
                         EfficiencyRating = CalculateEfficiencyRating(result)
                     },
-                    Recommendation = GenerateRecommendation(result, documentType)
+                    Recommendation = GenerateRecommendation(result, req.DocumentType)
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Smart hybrid OCR processing completed"));
+            }
+            catch (NotSupportedException ex)
+            {
+                _logger.LogError("Error occured inside TestTesseractDirect() in TesseractTestController.cs : " + ex);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
@@ -124,23 +131,23 @@ namespace KYCDocumentAPI.API.Controllers
         /// Compare all available OCR engines on the same document
         /// </summary>
         [HttpPost("engine-comparison")]
-        public async Task<ActionResult<ApiResponse<object>>> CompareEngines([FromForm] IFormFile file)
+        public async Task<ActionResult<ApiResponse<object>>> CompareEngines([FromForm] CompareEnginesRequest req)
         {
             try
             {
-                if (file == null || file.Length == 0)
+                if (req.File == null || req.File.Length == 0)
                     return BadRequest(ApiResponse<object>.ErrorResponse("No file provided"));
 
-                // Save file temporarily
-                var tempPath = Path.GetTempFileName();
+                var ext = ValidateUploadedFileAndGetExtension(req.File.FileName);
+                var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ext);
                 using (var stream = new FileStream(tempPath, FileMode.Create))
                 {
-                    await file.CopyToAsync(stream);
+                    await req.File.CopyToAsync(stream);
                 }
 
                 var options = new OCRProcessingOptions
                 {
-                    Languages = new List<string> { "en", "hi" },
+                    Languages = new List<string> { "eng", "hin" },
                     PreprocessImage = true,
                     ExtractWordDetails = true,
                     MinimumConfidence = 0.5f,
@@ -195,8 +202,8 @@ namespace KYCDocumentAPI.API.Controllers
                 {
                     FileInfo = new
                     {
-                        FileName = file.FileName,
-                        FileSize = file.Length,
+                        FileName = req.File.FileName,
+                        FileSize = req.File.Length,
                         ProcessingMode = "Engine Comparison"
                     },
                     ComparisonResults = new
@@ -220,6 +227,11 @@ namespace KYCDocumentAPI.API.Controllers
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Engine comparison completed"));
+            }
+            catch (NotSupportedException ex)
+            {
+                _logger.LogError("Error occured inside TestTesseractDirect() in TesseractTestController.cs : " + ex);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
@@ -313,14 +325,14 @@ namespace KYCDocumentAPI.API.Controllers
         /// Batch process multiple files with hybrid OCR
         /// </summary>
         [HttpPost("batch-process")]
-        public async Task<ActionResult<ApiResponse<object>>> BatchProcess([FromForm] List<IFormFile> files)
+        public async Task<ActionResult<ApiResponse<object>>> BatchProcess([FromForm] BatchProcessRequest req)
         {
             try
             {
-                if (files == null || !files.Any())
+                if (req.Files == null || !req.Files.Any())
                     return BadRequest(ApiResponse<object>.ErrorResponse("No files provided"));
 
-                if (files.Count > 10)
+                if (req.Files.Count > 10)
                     return BadRequest(ApiResponse<object>.ErrorResponse("Maximum 10 files allowed per batch"));
 
                 var tempPaths = new List<string>();
@@ -329,7 +341,7 @@ namespace KYCDocumentAPI.API.Controllers
                 try
                 {
                     // Save all files temporarily
-                    foreach (var file in files)
+                    foreach (var file in req.Files)
                     {
                         var tempPath = Path.GetTempFileName();
                         using (var stream = new FileStream(tempPath, FileMode.Create))
@@ -355,7 +367,7 @@ namespace KYCDocumentAPI.API.Controllers
                     for (int i = 0; i < batchResults.Count; i++)
                     {
                         var result = batchResults[i];
-                        var file = files[i];
+                        var file = req.Files[i];
 
                         results.Add(new
                         {
@@ -383,7 +395,7 @@ namespace KYCDocumentAPI.API.Controllers
                     {
                         BatchSummary = new
                         {
-                            TotalFiles = files.Count,
+                            TotalFiles = req.Files.Count,
                             SuccessfulProcessing = results.Count(r =>
                                 (bool)r.GetType().GetProperty("ProcessingResult")
                                     ?.GetValue(r)?.GetType().GetProperty("Success")?.GetValue(
@@ -420,134 +432,224 @@ namespace KYCDocumentAPI.API.Controllers
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("Batch processing failed"));
             }
         }
-
-        // Helper methods
+        
         private string DetermineSelectionReason(EnhancedOCRResult result)
         {
-            if (result.QualityMetrics?.OverallQuality >= 0.8f)
-                return "High quality image - optimal engine selected";
-            if (result.QualityMetrics?.OverallQuality < 0.5f)
-                return "Poor quality image - robust engine selected";
-            if (result.ProcessingStats.UsedFallback)
-                return "Primary engine failed - fallback engine used";
-            return "Standard processing based on document type";
+            try
+            {
+                if (result.QualityMetrics?.OverallQuality >= 0.8f)
+                    return "High quality image - optimal engine selected";
+                if (result.QualityMetrics?.OverallQuality < 0.5f)
+                    return "Poor quality image - robust engine selected";
+                if (result.ProcessingStats.UsedFallback)
+                    return "Primary engine failed - fallback engine used";
+                return "Standard processing based on document type";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside DetermineSelectionReason() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private string GetQualityGrade(float quality)
         {
-            return quality switch
+            try
             {
-                >= 0.9f => "Excellent",
-                >= 0.8f => "Good",
-                >= 0.6f => "Fair",
-                >= 0.4f => "Poor",
-                _ => "Very Poor"
-            };
+                return quality switch
+                {
+                    >= 0.9f => "Excellent",
+                    >= 0.8f => "Good",
+                    >= 0.6f => "Fair",
+                    >= 0.4f => "Poor",
+                    _ => "Very Poor"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GetQualityGrade() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private string CalculateEfficiencyRating(EnhancedOCRResult result)
         {
-            var totalTime = result.ProcessingTime.TotalMilliseconds;
-            var confidence = result.OverallConfidence;
-
-            var efficiency = confidence / (totalTime / 1000); // Confidence per second
-
-            return efficiency switch
+            try
             {
-                >= 0.3f => "Excellent",
-                >= 0.2f => "Good",
-                >= 0.1f => "Fair",
-                _ => "Poor"
-            };
+                var totalTime = result.ProcessingTime.TotalMilliseconds;
+                var confidence = result.OverallConfidence;
+
+                var efficiency = confidence / (totalTime / 1000); // Confidence per second
+
+                return efficiency switch
+                {
+                    >= 0.3f => "Excellent",
+                    >= 0.2f => "Good",
+                    >= 0.1f => "Fair",
+                    _ => "Poor"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside CalculateEfficiencyRating() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private string GenerateRecommendation(EnhancedOCRResult result, string documentType)
         {
-            if (!result.Success)
-                return "Processing failed - check image quality and try again";
+            try
+            {
+                if (!result.Success)
+                    return "Processing failed - check image quality and try again";
 
-            if (result.OverallConfidence >= 0.9f)
-                return "Excellent results - document ready for processing";
+                if (result.OverallConfidence >= 0.9f)
+                    return "Excellent results - document ready for processing";
 
-            if (result.OverallConfidence >= 0.7f)
-                return "Good results - minor manual review recommended";
+                if (result.OverallConfidence >= 0.7f)
+                    return "Good results - minor manual review recommended";
 
-            if (result.QualityMetrics?.QualityIssues.Any() == true)
-                return "Image quality issues detected - consider retaking photo";
+                if (result.QualityMetrics?.QualityIssues.Any() == true)
+                    return "Image quality issues detected - consider retaking photo";
 
-            return "Results acceptable but manual verification recommended";
+                return "Results acceptable but manual verification recommended";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GenerateRecommendation() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private object GetMostAccurateEngine(List<object> results)
         {
-            return results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
-                         .OrderByDescending(r => (double)r.GetType().GetProperty("Confidence")?.GetValue(r)!)
-                         .FirstOrDefault()?.GetType().GetProperty("Engine")?.GetValue(
-                             results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
-                                   .OrderByDescending(r => (double)r.GetType().GetProperty("Confidence")?.GetValue(r)!)
-                                   .FirstOrDefault()!) ?? "None";
+            try
+            {
+                return results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
+                                 .OrderByDescending(r => (double)r.GetType().GetProperty("Confidence")?.GetValue(r)!)
+                                 .FirstOrDefault()?.GetType().GetProperty("Engine")?.GetValue(
+                                     results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
+                                           .OrderByDescending(r => (double)r.GetType().GetProperty("Confidence")?.GetValue(r)!)
+                                           .FirstOrDefault()!) ?? "None";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GetMostAccurateEngine() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private object GetFastestEngine(List<object> results)
         {
-            return results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
-                         .OrderBy(r => (double)r.GetType().GetProperty("ProcessingTimeMs")?.GetValue(r)!)
-                         .FirstOrDefault()?.GetType().GetProperty("Engine")?.GetValue(
-                             results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
-                                   .OrderBy(r => (double)r.GetType().GetProperty("ProcessingTimeMs")?.GetValue(r)!)
-                                   .FirstOrDefault()!) ?? "None";
+            try
+            {
+                return results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
+                                 .OrderBy(r => (double)r.GetType().GetProperty("ProcessingTimeMs")?.GetValue(r)!)
+                                 .FirstOrDefault()?.GetType().GetProperty("Engine")?.GetValue(
+                                     results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!)
+                                           .OrderBy(r => (double)r.GetType().GetProperty("ProcessingTimeMs")?.GetValue(r)!)
+                                           .FirstOrDefault()!) ?? "None";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GetFastestEngine() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private object GetMostReliableEngine(List<object> results)
         {
-            var successfulEngines = results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!);
-            return successfulEngines.Any() ? successfulEngines.First().GetType().GetProperty("Engine")?.GetValue(successfulEngines.First()) ?? "None" : "None";
+            try
+            {
+                var successfulEngines = results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!);
+                return successfulEngines.Any() ? successfulEngines.First().GetType().GetProperty("Engine")?.GetValue(successfulEngines.First()) ?? "None" : "None";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GetMostReliableEngine() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private string GenerateEngineRecommendation(List<object> results)
         {
-            var successfulResults = results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!).ToList();
+            try
+            {
+                var successfulResults = results.Where(r => (bool)r.GetType().GetProperty("Success")?.GetValue(r)!).ToList();
 
-            if (!successfulResults.Any())
-                return "No engines succeeded - check system configuration";
+                if (!successfulResults.Any())
+                    return "No engines succeeded - check system configuration";
 
-            if (successfulResults.Count == 1)
-                return $"Only {successfulResults.First().GetType().GetProperty("Engine")?.GetValue(successfulResults.First())} succeeded - consider fixing other engines";
+                if (successfulResults.Count == 1)
+                    return $"Only {successfulResults.First().GetType().GetProperty("Engine")?.GetValue(successfulResults.First())} succeeded - consider fixing other engines";
 
-            var bestAccuracy = successfulResults.Max(r => (double)r.GetType().GetProperty("Confidence")?.GetValue(r)!);
-            var fastestTime = successfulResults.Min(r => (double)r.GetType().GetProperty("ProcessingTimeMs")?.GetValue(r)!);
+                var bestAccuracy = successfulResults.Max(r => (double)r.GetType().GetProperty("Confidence")?.GetValue(r)!);
+                var fastestTime = successfulResults.Min(r => (double)r.GetType().GetProperty("ProcessingTimeMs")?.GetValue(r)!);
 
-            if (bestAccuracy >= 90)
-                return "Multiple engines showing excellent accuracy - hybrid system optimal";
-            else
-                return "Multiple engines available - hybrid fallback provides good reliability";
+                if (bestAccuracy >= 90)
+                    return "Multiple engines showing excellent accuracy - hybrid system optimal";
+                else
+                    return "Multiple engines available - hybrid fallback provides good reliability";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GenerateEngineRecommendation() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
 
         private List<string> GenerateSystemRecommendations(List<OCREngineStatus> statuses, List<OCREngineCapabilities> capabilities)
         {
-            var recommendations = new List<string>();
+            try
+            {
+                var recommendations = new List<string>();
 
-            var healthyCount = statuses.Count(s => s.IsHealthy);
+                var healthyCount = statuses.Count(s => s.IsHealthy);
 
-            if (healthyCount == 0)
-                recommendations.Add("No OCR engines are healthy - immediate attention required");
-            else if (healthyCount == 1)
-                recommendations.Add("Only one engine healthy - consider fixing others for redundancy");
-            else
-                recommendations.Add("Multiple healthy engines - excellent system reliability");
+                if (healthyCount == 0)
+                    recommendations.Add("No OCR engines are healthy - immediate attention required");
+                else if (healthyCount == 1)
+                    recommendations.Add("Only one engine healthy - consider fixing others for redundancy");
+                else
+                    recommendations.Add("Multiple healthy engines - excellent system reliability");
 
-            var lowPerformanceEngines = statuses.Where(s => s.SuccessRate < 0.8f && s.SuccessfulRequests > 5).ToList();
-            if (lowPerformanceEngines.Any())
-                recommendations.Add($"Low performance detected: {string.Join(", ", lowPerformanceEngines.Select(e => e.Engine))}");
+                var lowPerformanceEngines = statuses.Where(s => s.SuccessRate < 0.8f && s.SuccessfulRequests > 5).ToList();
+                if (lowPerformanceEngines.Any())
+                    recommendations.Add($"Low performance detected: {string.Join(", ", lowPerformanceEngines.Select(e => e.Engine))}");
 
-            if (statuses.All(s => s.AverageResponseTime.TotalSeconds < 5))
-                recommendations.Add("All engines performing within acceptable time limits");
+                if (statuses.All(s => s.AverageResponseTime.TotalSeconds < 5))
+                    recommendations.Add("All engines performing within acceptable time limits");
 
-            var supportedLanguages = capabilities.SelectMany(c => c.SupportedLanguages).Distinct().Count();
-            if (supportedLanguages >= 80)
-                recommendations.Add("Excellent language support across engines");
+                var supportedLanguages = capabilities.SelectMany(c => c.SupportedLanguages).Distinct().Count();
+                if (supportedLanguages >= 80)
+                    recommendations.Add("Excellent language support across engines");
 
-            return recommendations;
+                return recommendations;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside GenerateSystemRecommendations() in HybridOCRController.cs : " + ex);
+                throw;
+            }
+        }
+
+        private string ValidateUploadedFileAndGetExtension(string fileName)
+        {
+            try
+            {
+                var ext = Path.GetExtension(fileName);
+                if (string.IsNullOrWhiteSpace(ext))
+                    throw new NotSupportedException("No image extension found. Invalid file uploaded. Kindly upload valid image.");
+                else if (ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                    throw new NotSupportedException("PDF files are not supported. Please upload an image file (PNG,JPG,JPEG,TIFF).");
+                return ext;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside ValidateUploadedFileAndGetExtension() in HybridOCRController.cs : " + ex);
+                throw;
+            }
         }
     }
 }
+*/

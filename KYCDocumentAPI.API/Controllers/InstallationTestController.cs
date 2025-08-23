@@ -46,15 +46,15 @@ namespace KYCDocumentAPI.API.Controllers
                     Version = pythonResult.Version
                 });
 
-                // Test EasyOCR
-                var easyocrResult = await TestEasyOCR();
-                tests.Add(new
-                {
-                    Component = "EasyOCR Library",
-                    Status = easyocrResult.Success ? "✅ PASS" : "❌ FAIL",
-                    Details = easyocrResult.Details,
-                    Version = easyocrResult.Version
-                });
+                //// Test EasyOCR
+                //var easyocrResult = await TestEasyOCR();
+                //tests.Add(new
+                //{
+                //    Component = "EasyOCR Library",
+                //    Status = easyocrResult.Success ? "✅ PASS" : "❌ FAIL",
+                //    Details = easyocrResult.Details,
+                //    Version = easyocrResult.Version
+                //});
 
                 // Test Languages
                 var languagesResult = await TestLanguages();

@@ -6,6 +6,7 @@ using KYCDocumentAPI.ML.Enums;
 using KYCDocumentAPI.ML.Models;
 using KYCDocumentAPI.ML.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
@@ -18,8 +19,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
         private readonly IDocumentClassificationService _classificationService;
         private readonly IOCRService _ocrService;
         private readonly ITextPatternService _textPatternService;
-        private readonly IDocumentValidationService _validationService;
-
+        private readonly IDocumentValidationService _validationService;        
         public DocumentProcessingService(
             ApplicationDbContext context,
             ILogger<DocumentProcessingService> logger,
@@ -34,9 +34,9 @@ namespace KYCDocumentAPI.Infrastructure.Services
             _ocrService = ocrService;
             _textPatternService = textPatternService;
             _validationService = validationService;
-        }
+                  }
 
-        public async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
+        private async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
         {
             try
             {
@@ -66,7 +66,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
             {
                 _logger.LogInformation("Extracting data from {DocumentType} document: {FilePath}", documentType, filePath);
 
-                // Extract text using OCR
+                // Extract text using OCR               
                 var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
                 if (!ocrResult.Success)
                 {
@@ -127,91 +127,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     ExtractionConfidence = 0.0
                 };
             }
-        }
-
-        public async Task<VerificationResult> VerifyDocumentAsync(Guid documentId)
-        {
-            try
-            {
-                var document = await _context.Documents
-                    .Include(d => d.DocumentData)
-                    .FirstOrDefaultAsync(d => d.Id == documentId);
-
-                if (document == null)
-                    throw new ArgumentException("Document not found", nameof(documentId));
-
-                _logger.LogInformation("Starting comprehensive verification for document {DocumentId}", documentId);
-
-                // Run fraud detection and validation
-                var validationResult = await _validationService.ValidateDocumentAsync(document);
-
-                // Create verification result based on validation
-                var verificationResult = new VerificationResult
-                {
-                    DocumentId = documentId,
-                    Status = validationResult.Status,
-                    AuthenticityScore = validationResult.Metrics.AuthenticityScore,
-                    QualityScore = validationResult.Metrics.QualityScore,
-                    ConsistencyScore = validationResult.Metrics.ConsistencyScore,
-                    FraudScore = validationResult.Metrics.FraudRiskScore,
-                    IsFormatValid = validationResult.Checks.Where(c => c.Category == "Structure").All(c => c.Passed),
-                    IsDataConsistent = validationResult.Metrics.ConsistencyScore >= 0.7f,
-                    IsImageClear = validationResult.Metrics.QualityScore >= 0.6f,
-                    IsTampered = validationResult.Metrics.FraudRiskScore > 0.7f,
-                    FailureReasons = string.Join(", ", validationResult.Checks
-                        .Where(c => !c.Passed && c.Severity >= CheckSeverity.High)
-                        .Select(c => c.Description)),
-                    AIInsights = GenerateAIInsights(validationResult),
-                    ProcessedAt = DateTime.UtcNow
-                };
-
-                // Save verification result
-                _context.VerificationResults.Add(verificationResult);
-
-                // Update document status based on verification result
-                document.Status = validationResult.Status switch
-                {
-                    VerificationStatus.Authentic => DocumentStatus.Verified,
-                    VerificationStatus.Fraudulent => DocumentStatus.Rejected,
-                    VerificationStatus.Suspicious => DocumentStatus.Rejected,
-                    VerificationStatus.TechnicalError => DocumentStatus.Processing,
-                    _ => DocumentStatus.Processing
-                };
-
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Document {DocumentId} verification completed with status {Status} and fraud score {FraudScore}", documentId, verificationResult.Status, Math.Round(verificationResult.FraudScore * 100, 1));
-
-                return verificationResult;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error verifying document {DocumentId} inside VerifyDocumentAsync() in DocumentProcessingService.cs", documentId);
-
-                // Create error verification result
-                var errorResult = new VerificationResult
-                {
-                    DocumentId = documentId,
-                    Status = VerificationStatus.TechnicalError,
-                    AuthenticityScore = 0.0,
-                    QualityScore = 0.0,
-                    ConsistencyScore = 0.0,
-                    FraudScore = 1.0,
-                    IsFormatValid = false,
-                    IsDataConsistent = false,
-                    IsImageClear = false,
-                    IsTampered = false,
-                    FailureReasons = $"Verification failed: {ex.Message}",
-                    AIInsights = "Technical error occurred during verification",
-                    ProcessedAt = DateTime.UtcNow
-                };
-
-                _context.VerificationResults.Add(errorResult);
-                await _context.SaveChangesAsync();
-
-                return errorResult;
-            }
-        }
+        }        
 
         public async Task ProcessDocumentAsync(Guid documentId)
         {
@@ -268,10 +184,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     }
 
                     await _context.SaveChangesAsync();
-                }
-
-                // Perform verification
-                await VerifyDocumentAsync(documentId);
+                }                
 
                 _logger.LogInformation("Document {DocumentId} processing completed successfully", documentId);
             }

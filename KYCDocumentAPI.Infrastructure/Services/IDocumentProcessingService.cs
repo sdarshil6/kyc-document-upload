@@ -6,10 +6,8 @@ using KYCDocumentAPI.ML.Models;
 namespace KYCDocumentAPI.Infrastructure.Services
 {
     public interface IDocumentProcessingService
-    {
-        Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath);
-        Task<DocumentExtractionResult> ExtractDocumentDataAsync(string filePath, DocumentType documentType);
-        Task<VerificationResult> VerifyDocumentAsync(Guid documentId);
+    {        
+        Task<DocumentExtractionResult> ExtractDocumentDataAsync(string filePath, DocumentType documentType);        
         Task ProcessDocumentAsync(Guid documentId);
     }
 }

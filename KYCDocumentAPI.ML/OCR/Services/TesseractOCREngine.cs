@@ -53,13 +53,18 @@ namespace KYCDocumentAPI.ML.OCR.Services
 
                 _logger.LogInformation("Starting Tesseract OCR processing for {ImagePath}", imagePath);
 
-                if (!File.Exists(imagePath))
-                    throw new FileNotFoundException($"Image file not found: {imagePath}");
+                // 🔑 Ensure absolute path
+                string fullImagePath = Path.IsPathRooted(imagePath)
+                    ? imagePath
+                    : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", imagePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
 
-                processedImagePath = imagePath;
+                if (!File.Exists(fullImagePath))
+                    throw new FileNotFoundException($"Image file not found: {fullImagePath}");
+
+                processedImagePath = fullImagePath;
                 if (options.PreprocessImage)
                 {
-                    processedImagePath = await PreprocessImageAsync(imagePath, options.PreprocessingOptions);
+                    processedImagePath = await PreprocessImageAsync(fullImagePath, options.PreprocessingOptions);
                 }
 
                 var result = await PerformTesseractOCRAsync(processedImagePath, options);
@@ -218,7 +223,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
         {
             try
             {
-                using var engine = new Tesseract.TesseractEngine(_tesseractDataPath, string.Join("+", options.Languages), EngineMode.Default);
+                using var engine = new TesseractEngine(_tesseractDataPath, string.Join("+", options.Languages), EngineMode.Default);
 
                 ConfigureTesseractEngine(engine, options);
 
@@ -313,9 +318,10 @@ namespace KYCDocumentAPI.ML.OCR.Services
                 await image.SaveAsync(preprocessedPath);
                 return preprocessedPath;
             }
-            catch
+            catch(Exception ex)
             {
-                return imagePath;
+                _logger.LogError("Error occured inside PreprocessImageAsync() in  TesseractOCREngine.cs : " + ex);
+                throw;
             }
         }
 

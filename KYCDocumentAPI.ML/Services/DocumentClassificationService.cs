@@ -14,15 +14,17 @@ namespace KYCDocumentAPI.ML.Services
         private readonly ILogger<DocumentClassificationService> _logger;                
         private ITransformer? _model;
         private object? _predictionEngine; // placeholder for now
-        private readonly IServiceProvider _provider;
+        private readonly IOCRService _ocrService;
+        private readonly ITextPatternService _textPatternService;
 
         public bool IsModelReady => _model != null && _predictionEngine != null;
 
-        public DocumentClassificationService(ILogger<DocumentClassificationService> logger, IServiceProvider provider)
+        public DocumentClassificationService(ILogger<DocumentClassificationService> logger, IOCRService ocrService, ITextPatternService textPatternService)
         {
             _mlContext = new MLContext(seed: 0);
-            _logger = logger;                        
-            _provider = provider;
+            _logger = logger;
+            _ocrService = ocrService;
+            _textPatternService = textPatternService;
         }
 
         private async Task<DocumentClassificationResult> PredictDocumentType(
@@ -55,13 +57,7 @@ namespace KYCDocumentAPI.ML.Services
             else if (fileName.Contains("license") || fileName.Contains("licence"))
                 scores[DocumentType.DrivingLicense] += 0.15;
             else if (fileName.Contains("voter"))
-                scores[DocumentType.VoterID] += 0.15;
-            else if (fileName.Contains("ration"))
-                scores[DocumentType.RationCard] += 0.15;
-            else if (fileName.Contains("bank") || fileName.Contains("passbook"))
-                scores[DocumentType.BankPassbook] += 0.15;
-            else if (fileName.Contains("bill") || fileName.Contains("utility"))
-                scores[DocumentType.UtilityBill] += 0.15;
+                scores[DocumentType.VoterID] += 0.15;            
 
             // Quality-based adjustment (15% weight)
             var qualityBonus = Math.Min(input.ImageQuality * 0.15, 0.15);
@@ -130,10 +126,8 @@ namespace KYCDocumentAPI.ML.Services
                     await InitializeModelAsync();
 
                 _logger.LogInformation("Classifying document: {FilePath}", filePath);
-
-                using var scope = _provider.CreateScope();
-                var ocrService = scope.ServiceProvider.GetRequiredService<IOCRService>();
-                var ocrResult = await ocrService.ExtractTextFromImageAsync(filePath);
+                
+                var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
                 if (!ocrResult.Success)
                 {
                     return new DocumentClassificationResult
@@ -143,10 +137,9 @@ namespace KYCDocumentAPI.ML.Services
                         ProcessingNotes = $"OCR failed: {string.Join(", ", ocrResult.Errors)}"
                     };
                 }
-
-                var textPatternService = scope.ServiceProvider.GetRequiredService<ITextPatternService>();
-                var patternResult = textPatternService.AnalyzeText(ocrResult.ExtractedText, fileName);
-                var qualityResult = await ocrService.AnalyzeImageQualityAsync(filePath);
+                
+                var patternResult = _textPatternService.AnalyzeText(ocrResult.ExtractedText, fileName);
+                var qualityResult = await _ocrService.AnalyzeImageQualityAsync(filePath);
 
                 var input = new DocumentClassificationInput
                 {
@@ -164,8 +157,7 @@ namespace KYCDocumentAPI.ML.Services
 
                 var prediction = await PredictDocumentType(input, patternResult);
 
-                _logger.LogInformation("Document classified as {DocumentType} with {Confidence}% confidence",
-                    prediction.PredictedType, Math.Round(prediction.Confidence * 100, 1));
+                _logger.LogInformation("Document classified as {DocumentType} with {Confidence}% confidence", prediction.PredictedType, Math.Round(prediction.Confidence * 100, 1));
 
                 return prediction;
             }

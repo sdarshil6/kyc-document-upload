@@ -39,9 +39,9 @@ namespace KYCDocumentAPI.ML.Services
             {
                 var options = new OCRProcessingOptions
                 {
-                    Languages = new List<string> { "en", "hi" },
+                    Languages = new List<string> { "eng", "hin" },
                     PreferredEngine = OCREngine.Tesseract,
-                    EnableFallback = true,
+                    EnableFallback = false,
                     PreprocessImage = true,
                     AnalyzeQuality = true,
                     TimeoutSeconds = 30,
