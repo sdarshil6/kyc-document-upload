@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KYCDocumentAPI.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250814200750_InitialCreate")]
+    [Migration("20250823154409_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -164,60 +164,6 @@ namespace KYCDocumentAPI.Infrastructure.Migrations
                     b.ToTable("DocumentData");
                 });
 
-            modelBuilder.Entity("KYCDocumentAPI.Core.Entities.KYCVerification", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<double>("OverallScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<int>("RejectedDocuments")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("TotalDocuments")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("VerifiedDocuments")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("KYCVerifications");
-                });
-
             modelBuilder.Entity("KYCDocumentAPI.Core.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -286,9 +232,9 @@ namespace KYCDocumentAPI.Infrastructure.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("5a61a814-34cb-49fb-973f-9b38cf9b06bf"),
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             City = "Mumbai",
-                            CreatedAt = new DateTime(2025, 8, 14, 20, 7, 49, 819, DateTimeKind.Utc).AddTicks(9358),
+                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DateOfBirth = new DateTime(1990, 1, 15, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Email = "john.doe@example.com",
                             FirstName = "John",
@@ -297,83 +243,8 @@ namespace KYCDocumentAPI.Infrastructure.Migrations
                             PhoneNumber = "9876543210",
                             PinCode = "400001",
                             State = "Maharashtra",
-                            UpdatedAt = new DateTime(2025, 8, 14, 20, 7, 49, 819, DateTimeKind.Utc).AddTicks(9494)
+                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
-                });
-
-            modelBuilder.Entity("KYCDocumentAPI.Core.Entities.VerificationResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AIInsights")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<double>("AuthenticityScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("ConsistencyScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("DocumentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("FailureReasons")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<double>("FraudScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDataConsistent")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsFormatValid")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsImageClear")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsTampered")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid?>("KYCVerificationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("QualityScore")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("KYCVerificationId");
-
-                    b.ToTable("VerificationResults");
                 });
 
             modelBuilder.Entity("KYCDocumentAPI.Core.Entities.Document", b =>
@@ -398,52 +269,14 @@ namespace KYCDocumentAPI.Infrastructure.Migrations
                     b.Navigation("Document");
                 });
 
-            modelBuilder.Entity("KYCDocumentAPI.Core.Entities.KYCVerification", b =>
-                {
-                    b.HasOne("KYCDocumentAPI.Core.Entities.User", "User")
-                        .WithMany("KYCVerifications")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("KYCDocumentAPI.Core.Entities.VerificationResult", b =>
-                {
-                    b.HasOne("KYCDocumentAPI.Core.Entities.Document", "Document")
-                        .WithMany("VerificationResults")
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("KYCDocumentAPI.Core.Entities.KYCVerification", "KYCVerification")
-                        .WithMany("VerificationResults")
-                        .HasForeignKey("KYCVerificationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Document");
-
-                    b.Navigation("KYCVerification");
-                });
-
             modelBuilder.Entity("KYCDocumentAPI.Core.Entities.Document", b =>
                 {
                     b.Navigation("DocumentData");
-
-                    b.Navigation("VerificationResults");
-                });
-
-            modelBuilder.Entity("KYCDocumentAPI.Core.Entities.KYCVerification", b =>
-                {
-                    b.Navigation("VerificationResults");
                 });
 
             modelBuilder.Entity("KYCDocumentAPI.Core.Entities.User", b =>
                 {
                     b.Navigation("Documents");
-
-                    b.Navigation("KYCVerifications");
                 });
 #pragma warning restore 612, 618
         }
