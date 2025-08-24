@@ -34,6 +34,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="TrainingData\Images\Aadhaar\" />
+    <Folder Include="TrainingData\Images\DrivingLicense\" />
+    <Folder Include="TrainingData\Images\PAN\" />
+    <Folder Include="TrainingData\Images\Passport\" />
+    <Folder Include="TrainingData\Images\VoterID\" />
     <Folder Include="wwwroot\uploads\documents\" />
   </ItemGroup>
 

@@ -22,15 +22,9 @@
 		<Folder Include="Evaluation\" />
 		<Folder Include="Training\" />
 		<Folder Include="OCR\Engines\" />
-		<Folder Include="TrainingData\Images\Aadhaar\" />
-		<Folder Include="TrainingData\Images\DrivingLicense\" />
-		<Folder Include="TrainingData\Images\VoterID\" />
-		<Folder Include="TrainingData\Images\Passport\" />
-		<Folder Include="TrainingData\Images\PAN\" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="TrainingData\**\*" CopyToOutputDirectory="PreserveNewest" />
 		<None Update="Machine Learning Models\**\*" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 

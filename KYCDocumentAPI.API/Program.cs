@@ -126,6 +126,7 @@ builder.Services.AddSingleton<TesseractOCREngine>();
 builder.Services.AddScoped<IOCREngineFactory, OCREngineFactory>();
 builder.Services.AddScoped<IEnhancedOCRService, EnhancedOCRService>();
 builder.Services.AddScoped<IOCRService, ProductionOCRService>();
+builder.Services.AddScoped<ITrainingDataService, TrainingDataService>();
 
 
 // Configure CORS for production
