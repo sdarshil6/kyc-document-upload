@@ -1,5 +1,4 @@
 ﻿using KYCDocumentAPI.API.Models.DTOs;
-using KYCDocumentAPI.API.Models.Requests;
 using KYCDocumentAPI.API.Models.Responses;
 using KYCDocumentAPI.ML.Services;
 
@@ -8,7 +7,7 @@ namespace KYCDocumentAPI.API.Controllers
     public class AITestController : ControllerBase
     {
         private readonly IDocumentClassificationService _classificationService;
-        private readonly IOCRService _ocrService;        
+        private readonly IOCRService _ocrService;                
         private readonly ILogger<AITestController> _logger;
 
         public AITestController(IDocumentClassificationService classificationService, IOCRService ocrService, ILogger<AITestController> logger)
@@ -95,12 +94,12 @@ namespace KYCDocumentAPI.API.Controllers
 
                 var response = new
                 {
-                    PredictedType = classificationResult.PredictedType.ToString(),
+                    PredictedType = classificationResult.PredictedDocumentType.ToString(),
                     Confidence = Math.Round(classificationResult.Confidence * 100, 1),
-                    AllPredictions = classificationResult.AllPredictions.ToDictionary(
-                        x => x.Key.ToString(),
-                        x => Math.Round(x.Value * 100, 1)
-                    ),
+                    //AllPredictions = classificationResult.AllPredictions.ToDictionary(
+                    //    x => x.Key.ToString(),
+                    //    x => Math.Round(x.Value * 100, 1)
+                    //),
                     ProcessingNotes = classificationResult.ProcessingNotes,
                     IsConfident = classificationResult.Confidence > 0.8,
                     FileName = classifyRequest.File.FileName
@@ -180,8 +179,8 @@ namespace KYCDocumentAPI.API.Controllers
                 _logger.LogError(ex, "Error in quality test");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("Quality test failed"));
             }
-        }
-        
+        }        
+
         private string ValidateUploadedFileAndGetExtension(string fileName)
         {
             try

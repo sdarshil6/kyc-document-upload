@@ -66,9 +66,9 @@ namespace KYCDocumentAPI.ML.Services
 
             // Best match
             var bestMatch = scores.OrderByDescending(x => x.Value).First();
-            result.PredictedType = bestMatch.Key;
-            result.Confidence = Math.Min(bestMatch.Value, 1.0);
-            result.AllPredictions = scores;
+            result.PredictedDocumentType = bestMatch.Key.ToString();
+            result.Confidence = (float)Math.Min(bestMatch.Value, 1.0);
+            //result.AllPredictions = scores;
 
             // Processing notes
             var notes = new List<string>();
@@ -132,8 +132,8 @@ namespace KYCDocumentAPI.ML.Services
                 {
                     return new DocumentClassificationResult
                     {
-                        PredictedType = DocumentType.Other,
-                        Confidence = 0.0,
+                        PredictedDocumentType = DocumentType.Other.ToString(),
+                        Confidence = 0,
                         ProcessingNotes = $"OCR failed: {string.Join(", ", ocrResult.Errors)}"
                     };
                 }
@@ -157,7 +157,7 @@ namespace KYCDocumentAPI.ML.Services
 
                 var prediction = await PredictDocumentType(input, patternResult);
 
-                _logger.LogInformation("Document classified as {DocumentType} with {Confidence}% confidence", prediction.PredictedType, Math.Round(prediction.Confidence * 100, 1));
+                _logger.LogInformation("Document classified as {DocumentType} with {Confidence}% confidence", prediction.PredictedDocumentType, Math.Round(prediction.Confidence * 100, 1));
 
                 return prediction;
             }
@@ -166,8 +166,8 @@ namespace KYCDocumentAPI.ML.Services
                 _logger.LogError(ex, "Error classifying document {FilePath}", filePath);
                 return new DocumentClassificationResult
                 {
-                    PredictedType = DocumentType.Other,
-                    Confidence = 0.0,
+                    PredictedDocumentType = DocumentType.Other.ToString(),
+                    Confidence = 0,
                     ProcessingNotes = $"Classification error: {ex.Message}"
                 };
             }

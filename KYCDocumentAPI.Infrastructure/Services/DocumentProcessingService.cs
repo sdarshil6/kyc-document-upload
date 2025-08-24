@@ -34,7 +34,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 var result = await _classificationService.ClassifyDocumentAsync(filePath, fileName);
 
                 _logger.LogInformation("Document {FilePath} classified as {DocumentType} with confidence {Confidence}",
-                    filePath, result.PredictedType, result.Confidence);
+                    filePath, result.PredictedDocumentType, result.Confidence);
 
                 return result;
             }
@@ -43,8 +43,8 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 _logger.LogError(ex, "Error classifying document {FilePath} inside ClassifyDocumentAsync() in DocumentProcessingService.cs ", filePath);
                 return new DocumentClassificationResult
                 {
-                    PredictedType = DocumentType.Other,
-                    Confidence = 0.0,
+                    PredictedDocumentType = DocumentType.Other.ToString(),
+                    Confidence = 0,
                     ProcessingNotes = $"Classification failed: {ex.Message}"
                 };
             }
@@ -137,11 +137,11 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 var classificationResult = await ClassifyDocumentAsync(document.FilePath);
 
                 // Update document type if classification is confident and different
-                if (classificationResult.IsConfident && classificationResult.PredictedType != document.DocumentType)
+                if (classificationResult.IsConfident && classificationResult.PredictedDocumentType != document.DocumentType.ToString())
                 {
-                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification",
-                        documentId, document.DocumentType, classificationResult.PredictedType);
-                    document.DocumentType = classificationResult.PredictedType;
+                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification", documentId, document.DocumentType, classificationResult.PredictedDocumentType);
+                    if (Enum.TryParse<DocumentType>(classificationResult.PredictedDocumentType, ignoreCase: true, out var parsedType))                    
+                        document.DocumentType = parsedType;                    
                 }
 
                 // Extract data from document
@@ -150,8 +150,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 if (extractionResult.Success)
                 {
                     // Create or update document data
-                    var documentData = await _context.DocumentData.FirstOrDefaultAsync(dd => dd.DocumentId == documentId)
-                                     ?? new DocumentData { DocumentId = documentId };
+                    var documentData = await _context.DocumentData.FirstOrDefaultAsync(dd => dd.DocumentId == documentId) ?? new DocumentData { DocumentId = documentId };
 
                     documentData.FullName = extractionResult.FullName;
                     documentData.DateOfBirth = extractionResult.DateOfBirth;
