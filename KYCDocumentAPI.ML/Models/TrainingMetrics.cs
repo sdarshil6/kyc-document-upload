@@ -6,23 +6,14 @@
         public DateTime TrainingStartTime { get; set; }
         public DateTime TrainingEndTime { get; set; }
         public TimeSpan TrainingDuration => TrainingEndTime - TrainingStartTime;
-
-        public int TotalTrainingImages { get; set; }
-        public int TotalValidationImages { get; set; }
+        public int TotalTrainingImages { get; set; }        
         public int NumberOfClasses { get; set; }
-        public Dictionary<string, int> ImagesPerClass { get; set; } = new();
-       
-        public float FinalAccuracy { get; set; }
-        public float FinalLoss { get; set; }
-        public float ValidationAccuracy { get; set; }
-        public float ValidationLoss { get; set; }
-     
-        public MLConfig Configuration { get; set; } = new();
-        
+        public Dictionary<string, int> ImagesPerClass { get; set; } = new();       
+        public float FinalAccuracy { get; set; }       
+        public float ValidationAccuracy { get; set; }            
+        public MLConfig Configuration { get; set; } = new();        
         public string ModelFilePath { get; set; } = string.Empty;
-        public long ModelFileSize { get; set; }
-        public string ModelVersion { get; set; } = "1.0.0";
-        
+        public long ModelFileSize { get; set; }      
         public bool IsProductionReady { get; set; }
         public List<string> QualityIssues { get; set; } = new();
         public List<string> Recommendations { get; set; } = new();
@@ -31,7 +22,7 @@
         {
             return $"Model: {ModelName} | " +
                    $"Duration: {TrainingDuration:mm\\:ss} | " +
-                   $"Images: {TotalTrainingImages} training, {TotalValidationImages} validation | " +
+                   $"Images: {TotalTrainingImages} training, " +
                    $"Accuracy: {FinalAccuracy:P2} (validation: {ValidationAccuracy:P2}) | " +
                    $"Status: {(IsProductionReady ? "READY" : "NEEDS WORK")}";
         }

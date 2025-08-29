@@ -127,7 +127,7 @@ builder.Services.AddScoped<IOCREngineFactory, OCREngineFactory>();
 builder.Services.AddScoped<IEnhancedOCRService, EnhancedOCRService>();
 builder.Services.AddScoped<IOCRService, ProductionOCRService>();
 builder.Services.AddScoped<ITrainingDataService, TrainingDataService>();
-
+builder.Services.AddScoped<IMLModelTrainingService, MLModelTrainingService>();
 
 // Configure CORS for production
 builder.Services.AddCors(options =>
@@ -221,7 +221,7 @@ app.UseHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 
 app.MapControllers();
 
-// Database migration and ML service initialization
+// Database migration
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -233,25 +233,14 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         Log.Error(ex, "An error occurred while migrating the database");
-    }
-    // Initialize ML services
-    var classificationService = scope.ServiceProvider.GetRequiredService<KYCDocumentAPI.ML.Services.IDocumentClassificationService>();
-    try
-    {
-        await classificationService.InitializeModelAsync();
-        Log.Information("ML services initialized successfully");
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Failed to initialize ML services");
-    }
+    }    
 }
 
 // Startup logging
 Log.Information("=== KYC Document API Starting ===");
 Log.Information("Environment: {Environment}", app.Environment.EnvironmentName);
 Log.Information("Version: 1.0.0");
-Log.Information("Features: AI Classification, Fraud Detection, OCR, Analytics");
+Log.Information("Features: AI Classification, OCR");
 
 try
 {

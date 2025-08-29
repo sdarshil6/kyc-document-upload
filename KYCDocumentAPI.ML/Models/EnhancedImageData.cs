@@ -27,8 +27,7 @@
                 Label = imageData.Label,
                 FileSize = imageData.FileSize,
                 OriginalFileName = imageData.OriginalFileName,
-                CreatedDate = imageData.CreatedDate,
-                IsAugmented = imageData.IsAugmented
+                CreatedDate = imageData.CreatedDate              
             };
         }
     }

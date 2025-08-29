@@ -1,4 +1,5 @@
-﻿using KYCDocumentAPI.ML.Models;
+﻿using KYCDocumentAPI.Core.Enums;
+using KYCDocumentAPI.ML.Models;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 
@@ -15,20 +16,33 @@ namespace KYCDocumentAPI.ML.Services
             _logger = logger;
         }
 
-        public async Task<List<ImageData>> LoadTrainingDataAsync(string dataPath)
+        public async Task<List<ImageData>> LoadTrainingDataOfParticularDocumentTypeAsync(string dataPath, string documentType)
         {
-            var trainingData = new List<ImageData>();
-
             try
             {
+                if (!Directory.Exists(dataPath))
+                    throw new DirectoryNotFoundException($"Training data directory not found: {dataPath}");
+
+                var images = await LoadImagesFromFolderAsync(dataPath, documentType);
+                return images;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside LoadTrainingDataOfParticularDocumentTypeAsync() in TrainingDataService.cs : " + ex);
+                throw;
+            }
+        }
+
+        public async Task<List<ImageData>> LoadTrainingDataAsync(string dataPath)
+        {
+            try
+            {
+                if (!Directory.Exists(dataPath))
+                    throw new DirectoryNotFoundException($"Training data directory not found: {dataPath}");
+
+                var trainingData = new List<ImageData>();
                 _logger.LogInformation("Loading training data from: {DataPath}", dataPath);
 
-                if (!Directory.Exists(dataPath))
-                {
-                    throw new DirectoryNotFoundException($"Training data directory not found: {dataPath}");
-                }
-
-                // Scan each document type folder
                 foreach (var documentType in _documentTypes)
                 {
                     var documentFolder = Path.Combine(dataPath, documentType);
@@ -39,46 +53,60 @@ namespace KYCDocumentAPI.ML.Services
                         continue;
                     }
 
-                    var imageFiles = Directory.GetFiles(documentFolder, "*.*", SearchOption.TopDirectoryOnly)
-                        .Where(file => _validImageExtensions.Contains(Path.GetExtension(file).ToLowerInvariant()))
-                        .ToList();
+                    var images = await LoadImagesFromFolderAsync(documentFolder, documentType);
+                    trainingData.AddRange(images);
 
-                    _logger.LogInformation("Found {Count} images for {DocumentType}", imageFiles.Count, documentType);
-
-                    foreach (var imageFile in imageFiles)
-                    {
-                        // Validate each image before adding to training data
-                        if (await ValidateImageAsync(imageFile))
-                        {
-                            var fileInfo = new FileInfo(imageFile);
-                            trainingData.Add(new ImageData
-                            {
-                                ImagePath = imageFile,
-                                Label = documentType,
-                                FileSize = fileInfo.Length,
-                                OriginalFileName = fileInfo.Name,
-                                CreatedDate = fileInfo.CreationTime,
-                                IsAugmented = false
-                            });
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Invalid image skipped: {ImageFile}", imageFile);
-                        }
-                    }
+                    _logger.LogInformation("Found {Count} valid images for {DocumentType}", images.Count, documentType);
                 }
 
-                _logger.LogInformation("Successfully loaded {Count} training images across {ClassCount} document types",
-                    trainingData.Count, trainingData.GroupBy(x => x.Label).Count());
+                _logger.LogInformation("Successfully loaded {Count} training images across {ClassCount} document types", trainingData.Count, trainingData.Select(x => x.Label).Distinct().Count());
 
                 return trainingData;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading training data from {DataPath}", dataPath);
+                _logger.LogError("Error occured inside LoadTrainingDataAsync() in TrainingDataService.cs : " + ex);
                 throw;
             }
         }
+
+        private async Task<List<ImageData>> LoadImagesFromFolderAsync(string folderPath, string documentType)
+        {
+            try
+            {
+                var imageFiles = Directory.EnumerateFiles(folderPath, "*.*", SearchOption.TopDirectoryOnly).Where(file => _validImageExtensions.Contains(Path.GetExtension(file).ToLowerInvariant()));
+
+                var tasks = imageFiles.Select(async imageFile =>
+                {
+                    if (await ValidateImageAsync(imageFile))
+                    {
+                        var fileInfo = new FileInfo(imageFile);
+                        return new ImageData
+                        {
+                            ImagePath = imageFile,
+                            Label = documentType,
+                            FileSize = fileInfo.Length,
+                            OriginalFileName = fileInfo.Name,
+                            CreatedDate = fileInfo.CreationTime
+                        };
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Invalid image skipped: {ImageFile}", imageFile);
+                        return null;
+                    }
+                });
+
+                var results = await Task.WhenAll(tasks);
+                return [.. results.Where(x => x != null)];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error occured inside LoadImagesFromFolderAsync() in TrainingDataService.cs : " + ex);
+                throw;
+            }
+        }
+
 
         public async Task<bool> ValidateImageAsync(string imagePath)
         {

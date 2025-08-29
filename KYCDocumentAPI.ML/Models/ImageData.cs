@@ -12,7 +12,6 @@ namespace KYCDocumentAPI.ML.Models
        
         public long FileSize { get; set; }
         public string OriginalFileName { get; set; } = string.Empty;
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
-        public bool IsAugmented { get; set; } = false;
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;        
     }
 }

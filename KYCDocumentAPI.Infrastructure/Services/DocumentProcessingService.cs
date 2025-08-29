@@ -26,27 +26,21 @@ namespace KYCDocumentAPI.Infrastructure.Services
             _textPatternService = textPatternService;         
         }
 
-        private async Task<DocumentClassificationResult> ClassifyDocumentAsync(string filePath)
+        private async Task<ImagePrediction> ClassifyDocumentAsync(string filePath)
         {
             try
             {
                 var fileName = Path.GetFileName(filePath);
-                var result = await _classificationService.ClassifyDocumentAsync(filePath, fileName);
+                var result = await _classificationService.ClassifyDocumentAsync(filePath);
 
-                _logger.LogInformation("Document {FilePath} classified as {DocumentType} with confidence {Confidence}",
-                    filePath, result.PredictedDocumentType, result.Confidence);
+                _logger.LogInformation("Document {FilePath} classified as {DocumentType} with confidence {Confidence}", filePath, result.PredictedLabel, result.Confidence);
 
                 return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error classifying document {FilePath} inside ClassifyDocumentAsync() in DocumentProcessingService.cs ", filePath);
-                return new DocumentClassificationResult
-                {
-                    PredictedDocumentType = DocumentType.Other.ToString(),
-                    Confidence = 0,
-                    ProcessingNotes = $"Classification failed: {ex.Message}"
-                };
+                throw;
             }
         }
 
@@ -137,10 +131,10 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 var classificationResult = await ClassifyDocumentAsync(document.FilePath);
 
                 // Update document type if classification is confident and different
-                if (classificationResult.IsConfident && classificationResult.PredictedDocumentType != document.DocumentType.ToString())
+                if (classificationResult.IsConfident() && classificationResult.PredictedLabel != document.DocumentType.ToString())
                 {
-                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification", documentId, document.DocumentType, classificationResult.PredictedDocumentType);
-                    if (Enum.TryParse<DocumentType>(classificationResult.PredictedDocumentType, ignoreCase: true, out var parsedType))                    
+                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification", documentId, document.DocumentType, classificationResult.PredictedLabel);
+                    if (Enum.TryParse<DocumentType>(classificationResult.PredictedLabel, ignoreCase: true, out var parsedType))                    
                         document.DocumentType = parsedType;                    
                 }
 

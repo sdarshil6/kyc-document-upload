@@ -1,5 +1,6 @@
 ﻿using KYCDocumentAPI.ML.Services;
 using KYCDocumentAPI.API.Models.Responses;
+using KYCDocumentAPI.ML.Models;
 
 namespace KYCDocumentAPI.API.Controllers
 {
@@ -11,11 +12,9 @@ namespace KYCDocumentAPI.API.Controllers
         private readonly ITrainingDataService _trainingDataService;
         private readonly ILogger<TrainingDataController> _logger;
         private readonly string _trainingDataPath;
+        private readonly IMLModelTrainingService _mlModelTrainingService;
 
-        public TrainingDataController(
-            ITrainingDataService trainingDataService,
-            ILogger<TrainingDataController> logger,
-            IConfiguration configuration)
+        public TrainingDataController(ITrainingDataService trainingDataService, ILogger<TrainingDataController> logger, IConfiguration configuration, IMLModelTrainingService mlModelTrainingService)
         {
             _trainingDataService = trainingDataService;
             _logger = logger;
@@ -23,6 +22,8 @@ namespace KYCDocumentAPI.API.Controllers
             _trainingDataPath = Path.Combine(Directory.GetCurrentDirectory(), "TrainingData", "Images");
             if (string.IsNullOrWhiteSpace(_trainingDataPath))
                 throw new ApplicationException("TrainingData folder path does not exist.");
+
+            _mlModelTrainingService = mlModelTrainingService;
         }
 
         [HttpGet("analyze")]
@@ -71,62 +72,7 @@ namespace KYCDocumentAPI.API.Controllers
                 _logger.LogError(ex, "Error analyzing training data");
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("Training data analysis failed"));
             }
-        }
-
-        [HttpPost("validate")]
-        public async Task<ActionResult<ApiResponse<object>>> ValidateTrainingData()
-        {
-            try
-            {
-                _logger.LogInformation("Starting training data validation");
-
-                var allImages = await _trainingDataService.LoadTrainingDataAsync(_trainingDataPath);
-                var validationResults = new List<object>();
-
-                foreach (var imageData in allImages)
-                {
-                    var isValid = await _trainingDataService.ValidateImageAsync(imageData.ImagePath);
-
-                    validationResults.Add(new
-                    {
-                        ImagePath = imageData.ImagePath,
-                        FileName = imageData.OriginalFileName,
-                        Label = imageData.Label,
-                        IsValid = isValid,
-                        FileSizeKB = Math.Round(imageData.FileSize / 1024.0, 1),
-                        ValidationStatus = isValid ? "Valid" : "Invalid"
-                    });
-                }
-
-                var validCount = validationResults.Count(r => (bool)((dynamic)r).IsValid);
-                var invalidCount = validationResults.Count - validCount;
-
-                var response = new
-                {
-                    Summary = new
-                    {
-                        TotalImages = validationResults.Count,
-                        ValidImages = validCount,
-                        InvalidImages = invalidCount,                        
-                    },
-                    ValidImages = validationResults.Where(r => (bool)((dynamic)r).IsValid).ToList(),
-                    InvalidImages = validationResults.Where(r => !(bool)((dynamic)r).IsValid).ToList(),
-                    ClassBreakdown = validationResults.GroupBy(r => ((dynamic)r).Label).ToDictionary(g => g.Key, g => new
-                    {
-                        Total = g.Count(),
-                        Valid = g.Count(r => (bool)((dynamic)r).IsValid),
-                        Invalid = g.Count(r => !(bool)((dynamic)r).IsValid)
-                    })
-                };
-
-                return Ok(ApiResponse<object>.SuccessResponse(response, "Training data validation completed"));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating training data");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("Training data validation failed"));
-            }
-        }
+        }      
 
         [HttpGet("status")]
         public async Task<ActionResult<ApiResponse<object>>> GetTrainingDataStatus()
@@ -173,63 +119,17 @@ namespace KYCDocumentAPI.API.Controllers
             }
         }
 
-        [HttpGet("statistics")]
-        public async Task<ActionResult<ApiResponse<object>>> GetDetailedStatistics()
+        [HttpGet("train-model")]
+        public async Task<ActionResult<TrainingMetrics>> TrainModel()
         {
             try
             {
-                var allImages = await _trainingDataService.LoadTrainingDataAsync(_trainingDataPath);
-
-                if (allImages.Count == 0)
-                {
-                    return Ok(ApiResponse<object>.SuccessResponse(new { Message = "No training data found" }, "No data to analyze"));
-                }
-
-                var classStatistics = allImages
-                    .GroupBy(x => x.Label)
-                    .ToDictionary(g => g.Key, g => new
-                    {
-                        ImageCount = g.Count(),
-                        TotalSizeMB = Math.Round(g.Sum(x => x.FileSize) / (1024.0 * 1024.0), 2),
-                        AverageFileSizeKB = Math.Round(g.Average(x => x.FileSize) / 1024.0, 1),
-                        ImageFiles = g.Select(x => new
-                        {
-                            FileName = x.OriginalFileName,
-                            SizeKB = Math.Round(x.FileSize / 1024.0, 1),
-                            Path = x.ImagePath,
-                            IsAugmented = x.IsAugmented
-                        }).OrderBy(x => x.FileName).ToList()
-                    });
-
-                var overallStats = new
-                {
-                    TotalImages = allImages.Count,
-                    TotalSizeMB = Math.Round(allImages.Sum(x => x.FileSize) / (1024.0 * 1024.0), 2),
-                    AverageImagesPerClass = Math.Round((double)allImages.Count / classStatistics.Count, 1),
-                    DocumentTypes = classStatistics.Count,
-                    OldestImage = allImages.Min(x => x.CreatedDate),
-                    NewestImage = allImages.Max(x => x.CreatedDate),
-                    AugmentedImages = allImages.Count(x => x.IsAugmented)
-                };
-
-                var response = new
-                {
-                    OverallStatistics = overallStats,
-                    ClassStatistics = classStatistics,
-                    DataQuality = new
-                    {
-                        HasSufficientData = allImages.Count >= 180,
-                        LargestClass = classStatistics.OrderByDescending(x => x.Value.ImageCount).First().Key,
-                        SmallestClass = classStatistics.OrderBy(x => x.Value.ImageCount).First().Key,
-                    }
-                };
-
-                return Ok(ApiResponse<object>.SuccessResponse(response, "Detailed statistics retrieved"));
+                return await _mlModelTrainingService.TrainModelAsync();
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                _logger.LogError(ex, "Error getting detailed statistics");
-                return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to get statistics"));
+                _logger.LogError("Error occured inside TrainModel() in TrainingDataController.cs : " + ex);
+                throw;
             }
         }
        

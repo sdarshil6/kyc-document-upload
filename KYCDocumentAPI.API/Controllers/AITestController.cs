@@ -87,22 +87,15 @@ namespace KYCDocumentAPI.API.Controllers
                 }
 
                 // Run classification
-                var classificationResult = await _classificationService.ClassifyDocumentAsync(tempPath, classifyRequest.File.FileName);
+                var classificationResult = await _classificationService.ClassifyDocumentAsync(tempPath);
 
                 // Clean up
                 System.IO.File.Delete(tempPath);
 
                 var response = new
                 {
-                    PredictedType = classificationResult.PredictedDocumentType.ToString(),
-                    Confidence = Math.Round(classificationResult.Confidence * 100, 1),
-                    //AllPredictions = classificationResult.AllPredictions.ToDictionary(
-                    //    x => x.Key.ToString(),
-                    //    x => Math.Round(x.Value * 100, 1)
-                    //),
-                    ProcessingNotes = classificationResult.ProcessingNotes,
-                    IsConfident = classificationResult.Confidence > 0.8,
-                    FileName = classifyRequest.File.FileName
+                    PredictedType = classificationResult.PredictedLabel,
+                    Confidence = Math.Round(classificationResult.Confidence * 100, 1)                                       
                 };
 
                 return Ok(ApiResponse<object>.SuccessResponse(response, "Document classification completed"));

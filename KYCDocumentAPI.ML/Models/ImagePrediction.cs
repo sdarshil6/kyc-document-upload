@@ -16,8 +16,7 @@ namespace KYCDocumentAPI.ML.Models
         {
             var labels = new[]
             {
-                "Aadhaar", "PAN", "Passport", "DrivingLicense",
-                "VoterID", "RationCard", "BankPassbook", "UtilityBill", "Other"
+                "Aadhaar", "PAN", "Passport", "DrivingLicense","VoterID"
             };
 
             var probabilities = new Dictionary<string, float>();
