@@ -1,0 +1,406 @@
+/* 🚀 Futuristic Upload Container - FIXED POSITIONING */
+.upload-container {
+    max-width: 1200px;
+    width: 95%;
+    /* Added responsive width */
+    margin: 2rem auto;
+    /* Reduced top margin from 4rem to 2rem */
+    padding: 3rem;
+    background: radial-gradient(circle at top left, #0a0f1c 0%, #121826 50%, #1a1f2c 100%);
+    border-radius: 28px;
+    box-shadow: 0 0 40px rgba(0, 255, 255, 0.55), inset 0 0 28px rgba(0, 255, 255, 0.15);
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+    color: #e0f7fa;
+    animation: containerGlow 1s infinite alternate;
+    transform: perspective(1200px) rotateX(2deg);
+    /* Ensure container can expand vertically */
+    min-height: auto;
+    position: relative;
+    /* Ensure proper stacking context */
+    z-index: 5;
+    /* Higher than background elements but lower than app-document-upload */
+}
+
+@keyframes containerGlow {
+    from {
+        box-shadow: 0 0 35px rgba(0, 255, 255, 0.4), inset 0 0 22px rgba(0, 255, 255, 0.08);
+    }
+
+    to {
+        box-shadow: 0 0 55px rgba(0, 255, 255, 0.7), inset 0 0 40px rgba(0, 255, 255, 0.18);
+    }
+}
+
+/* 🔹 Title */
+.title {
+    font-size: 2.4rem;
+    margin-bottom: 2rem;
+    letter-spacing: 3px;
+    text-shadow: 0 0 20px cyan, 0 0 40px #00e5ff, 0 0 60px #00bcd4;
+    animation: titlePulse 1s infinite alternate;
+}
+
+@keyframes titlePulse {
+    from {
+        text-shadow: 0 0 18px #00e5ff, 0 0 30px #00bcd4;
+    }
+
+    to {
+        text-shadow: 0 0 28px #e91d1d, 0 0 50px #f11afd;
+    }
+}
+
+/* 🔹 File Input */
+.file-label {
+    display: inline-block;
+    padding: 1.4rem 2.8rem;
+    border: 2px dashed #00e5ff;
+    border-radius: 18px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    margin-bottom: 1.6rem;
+    background: rgba(0, 229, 255, 0.06);
+    position: relative;
+    overflow: hidden;
+    font-size: 1.1rem;
+}
+
+.file-label::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 120%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(0, 229, 255, 0.25), transparent);
+    transition: 0.6s;
+}
+
+.file-label:hover::before {
+    left: 100%;
+}
+
+.file-label:hover {
+    background: rgba(0, 229, 255, 0.18);
+    box-shadow: 0 0 22px cyan, inset 0 0 10px rgba(0, 229, 255, 0.3);
+    transform: scale(1.03);
+}
+
+.file-input {
+    display: none;
+}
+
+.glow-text {
+    color: #00e5ff;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    font-size: 1rem;
+}
+
+/* 🔹 Text Inputs */
+.text-input,
+.dropdown-select {
+    width: 100%;
+    padding: 1rem 1.2rem;
+    margin: 0.9rem 0 1.4rem;
+    border-radius: 14px;
+    border: 1px solid #00e5ff;
+    background: #101522;
+    color: #e0f7fa;
+    outline: none;
+    transition: all 0.4s ease;
+    font-size: 1.05rem;
+}
+
+.text-input:focus,
+.dropdown-select:focus {
+    box-shadow: 0 0 16px #00e5ff, inset 0 0 8px rgba(0, 229, 255, 0.3);
+    border-color: #1de9b6;
+    transform: scale(1.02);
+}
+
+/* 🔹 Dropdown with Neon Arrow */
+.dropdown-select {
+    appearance: none;
+    cursor: pointer;
+    position: relative;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    background: linear-gradient(145deg, #101522, #1a1f2c);
+    color: #e0f7fa;
+}
+
+/* ensure dropdown options are visible */
+.dropdown-select option {
+    background: #1a1f2c;
+    color: #e0f7fa;
+    font-weight: 500;
+    padding: 0.6rem;
+}
+
+/* hover/active option states */
+.dropdown-select option:checked,
+.dropdown-select option:hover {
+    background: #00e5ff;
+    color: #0a0f1c;
+}
+
+/* neon arrow */
+.dropdown-select::after {
+    content: "▼";
+    position: absolute;
+    right: 1.2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #00e5ff;
+    font-size: 1rem;
+    pointer-events: none;
+    text-shadow: 0 0 8px #00e5ff;
+}
+
+/* 🔹 Upload Button */
+.upload-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #00e5ff, #1de9b6);
+    color: #0a0f1c;
+    font-size: 2rem;
+    font-weight: bold;
+    margin-top: 1.6rem;
+    padding: 1rem 2.6rem;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    box-shadow: 0 0 15px #00e5ff, 0 0 25px #1de9b6;
+}
+
+.upload-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1de9b6, #00e5ff);
+    box-shadow: 0 0 25px #1de9b6, 0 0 40px #00e5ff;
+    transform: translateY(-3px) scale(1.05);
+}
+
+.upload-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* 🔹 Loader Spinner */
+.loader {
+    border: 4px solid #1a1f2c;
+    border-top: 4px solid #00e5ff;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    animation: spin 0.8s linear infinite, loaderGlow 2s ease-in-out infinite alternate;
+    display: inline-block;
+    margin-left: 12px;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes loaderGlow {
+    from {
+        box-shadow: 0 0 8px #00e5ff;
+    }
+
+    to {
+        box-shadow: 0 0 16px #1de9b6;
+    }
+}
+
+/* 🔹 Error Message */
+.error {
+    font-size: 1rem;
+    color: #ff5252;
+    margin-top: 8px;
+    text-shadow: 0 0 8px rgba(255, 82, 82, 0.7);
+    font-weight: 500;
+}
+
+/* 🔹 Response Cards - ENHANCED POSITIONING */
+.response-card {
+    margin-top: 2.4rem;
+    margin-bottom: 2rem;
+    /* Added bottom margin for spacing */
+    padding: 2rem;
+    border-radius: 18px;
+    animation: fadeIn 0.7s ease-in-out;
+    backdrop-filter: blur(8px);
+    /* Ensure response cards don't interfere with scrolling */
+    position: relative;
+    z-index: 1;
+    /* Ensure proper text wrapping */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.response-card.success {
+    border: 2px solid #00e676;
+    box-shadow: 0 0 22px #00e676, inset 0 0 12px rgba(0, 230, 118, 0.3);
+    color: #b9f6ca;
+}
+
+.response-card.error {
+    border: 2px solid #ff1744;
+    box-shadow: 0 0 22px #ff1744, inset 0 0 12px rgba(255, 23, 68, 0.3);
+    color: #ff8a80;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.94) translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* 🔹 Response Details - IMPROVED LAYOUT */
+.response-details {
+    margin-top: 1.4rem;
+    text-align: left;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: white;
+    /* Ensure content doesn't overflow */
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.response-details h4 {
+    margin-bottom: 0.7rem;
+    text-shadow: 0 0 12px cyan;
+    font-size: 1.5rem;
+    letter-spacing: 0.7px;
+    color: rgb(241, 241, 9);
+}
+
+.response-details ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.response-details li {
+    margin: 0.5rem 0;
+    padding-left: 1.2rem;
+    position: relative;
+    font-size: 1rem;
+    color: orange;
+    /* Ensure long text wraps properly */
+    word-break: break-word;
+    hyphens: auto;
+}
+
+.response-details li strong {
+    color: lightgreen;
+    font-weight: 600;
+}
+
+.response-details li::before {
+    content: "✦";
+    position: absolute;
+    left: 0;
+    color: white;
+    font-size: 1rem;
+}
+
+/* 🔹 Responsive Design Enhancements */
+@media (max-width: 768px) {
+    .upload-container {
+        width: 98%;
+        /* More width on mobile */
+        margin: 1rem auto;
+        /* Reduced margin on mobile */
+        padding: 2rem 1.5rem;
+        /* Adjusted padding for mobile */
+    }
+
+    .title {
+        font-size: 2rem;
+        /* Smaller title on mobile */
+        margin-bottom: 1.5rem;
+    }
+
+    .upload-btn {
+        font-size: 1.6rem;
+        /* Smaller button text on mobile */
+        padding: 0.8rem 2rem;
+    }
+
+    .response-details h4 {
+        font-size: 1.3rem;
+        /* Smaller heading on mobile */
+    }
+}
+
+@media (max-width: 480px) {
+    .upload-container {
+        padding: 1.5rem 1rem;
+        /* Even smaller padding on very small screens */
+        margin: 0.5rem auto;
+    }
+
+    .title {
+        font-size: 1.8rem;
+        letter-spacing: 2px;
+    }
+
+    .file-label {
+        padding: 1.2rem 2rem;
+        /* Smaller file label on mobile */
+        font-size: 1rem;
+    }
+
+    .upload-btn {
+        font-size: 1.4rem;
+        padding: 0.7rem 1.5rem;
+        letter-spacing: 1.2px;
+    }
+}
+
+/* 🔹 Smooth Scrolling Enhancements */
+.upload-container {
+    /* Ensure smooth transitions when content changes */
+    transition: height 0.3s ease-in-out;
+}
+
+/* 🔹 Content Expansion Animation */
+.response-card {
+    /* Animate height changes smoothly */
+    transition: all 0.3s ease-in-out;
+}
+
+/* 🔹 Prevent Content Jumping */
+.response-details * {
+    /* Ensure all content maintains proper spacing */
+    box-sizing: border-box;
+}
+
+/* 🔹 Enhanced Focus States for Accessibility */
+.file-label:focus-within,
+.text-input:focus,
+.dropdown-select:focus,
+.upload-btn:focus {
+    outline: 2px solid #00e5ff;
+    outline-offset: 2px;
+}
+
+/* 🔹 Loading State Improvements */
+.upload-container.loading {
+    /* Prevent interaction during upload */
+    pointer-events: none;
+    opacity: 0.8;
+}

@@ -1,0 +1,120 @@
+<div class="upload-container">
+  <h2 class="title">KYC Document Classification & Extraction</h2>
+
+  <!-- Upload Form -->
+  <form [formGroup]="uploadForm" (ngSubmit)="onSubmit()" novalidate>
+    <!-- File Input -->
+    <div class="form-group">
+      <label for="fileInput" class="file-label">
+        <span class="glow-text">Click me to upload file</span>
+        <input
+          id="fileInput"
+          type="file"
+          class="file-input"
+          formControlName="file"
+          (change)="onFileSelected($event)"
+          accept=".png,.jpg,.jpeg,.webp"
+        />
+      </label>
+      <div
+        class="error"
+        *ngIf="
+          uploadForm.get('file')?.touched && uploadForm.get('file')?.invalid
+        "
+      >
+        ⚠️ Please select a valid file (.png, .jpg, .jpeg, .webp, under 10MB).
+      </div>
+    </div>
+
+    <!-- Document Type -->
+    <div class="form-group">
+      <select formControlName="documentType" class="dropdown-select">
+        <option value="">-- Select Document Type --</option>
+        <option *ngFor="let type of documentTypes" [value]="type.id">
+          {{ type.name }}
+        </option>
+      </select>
+      <div
+        class="error"
+        *ngIf="
+          uploadForm.get('documentType')?.touched &&
+          uploadForm.get('documentType')?.invalid
+        "
+      >
+        ⚠️ Please select a document type.
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <button
+      class="upload-btn"
+      type="submit"
+      [disabled]="loading || uploadForm.invalid"
+    >
+      <span *ngIf="!loading">Submit</span>
+      <span *ngIf="loading" class="loader"></span>
+    </button>
+  </form>
+
+  <div
+    *ngIf="responseMessage"
+    class="response-card"
+    [ngClass]="{ success: isSuccess, error: !isSuccess }"
+  >
+    <h3>{{ isSuccess ? "✅ Upload Successful!" : "❌ Upload Failed" }}</h3>
+    <p>{{ responseMessage }}</p>
+
+    <div *ngIf="isSuccess && uploadResponse" class="response-details">
+      <h4>📄 Document Details</h4>
+      <ul>
+        <li><strong>ID:</strong> {{ uploadResponse.documentId }}</li>
+        <li><strong>File Name:</strong> {{ uploadResponse.fileName }}</li>
+        <li><strong>Type:</strong> {{ uploadResponse.inputDocumentType }}</li>
+        <li>
+          <strong>Classified Type:</strong>
+          {{ uploadResponse.classifiedDocumentType }}
+        </li>
+        <li><strong>Status:</strong> {{ uploadResponse.status }}</li>
+        <li><strong>Size:</strong> {{ uploadResponse.fileSize }} bytes</li>
+      </ul>
+
+      <div *ngIf="uploadResponse.extractedData">
+        <h4>🧾 Extracted Data</h4>
+        <ul>
+          <li *ngIf="uploadResponse.extractedData.fullName">
+            <strong>Name:</strong> {{ uploadResponse.extractedData.fullName }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.dateOfBirth">
+            <strong>DOB:</strong>
+            {{ uploadResponse.extractedData.dateOfBirth | date }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.gender">
+            <strong>Gender:</strong> {{ uploadResponse.extractedData.gender }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.aadhaarNumber">
+            <strong>Aadhaar:</strong>
+            {{ uploadResponse.extractedData.aadhaarNumber }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.panNumber">
+            <strong>PAN:</strong> {{ uploadResponse.extractedData.panNumber }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.passportNumber">
+            <strong>Passport:</strong>
+            {{ uploadResponse.extractedData.passportNumber }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.address">
+            <strong>Address:</strong>
+            {{ uploadResponse.extractedData.address }},
+            {{ uploadResponse.extractedData.city }},
+            {{ uploadResponse.extractedData.state }} -
+            {{ uploadResponse.extractedData.pinCode }}
+          </li>
+          <li>
+            <strong>Confidence:</strong>
+            {{ uploadResponse.extractedData.extractionConfidence }}%
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

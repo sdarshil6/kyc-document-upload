@@ -3,13 +3,14 @@ using KYCDocumentAPI.Infrastructure.Data;
 using KYCDocumentAPI.ML.OCR.Services;
 using KYCDocumentAPI.ML.Services;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
+
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
@@ -23,73 +24,20 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add services to the container
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// Configure Memory Cache
 builder.Services.AddMemoryCache();
-
-// Configure Swagger/OpenAPI with enhanced documentation
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+builder.Services.AddCors();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>()
+    .AddCheck("file-storage", () =>
     {
-        Title = "KYC Document Management API",
-        Version = "v1.0.0",
-        Description = @"
-            ## AI-Powered Indian KYC Document Management System
-            ### Features
-            - **AI Document Classification**: Automatically identify document types using ML.NET
-            - **OCR Text Extraction**: Extract text from images and PDFs with high accuracy
-            - **Fraud Detection**: Advanced algorithms to detect tampering and fraudulent documents
-            - **Real-time Verification**: Instant document authenticity checks
-            - **Analytics Dashboard**: Comprehensive insights and fraud detection metrics
-            - **Indian Document Support**: Specialized handling for Aadhaar, PAN, Passport, etc.
-            ### Technology Stack
-            - **.NET 8** - High-performance web API
-            - **PostgreSQL** - Robust data storage with Entity Framework Core
-            - **ML.NET** - Machine learning for document processing
-            - **Swagger** - Comprehensive API documentation
-            ### Quick Start
-            1. Create a user: `POST /api/users`
-            2. Upload a document: `POST /api/documents/upload`
-            3. Monitor processing: `GET /api/documents/{id}`
-            4. Run fraud detection: `POST /api/frauddetection/validate/{documentId}`
-            ### Support
-            For detailed examples and testing guidelines, visit `/api/documentation`
-        ",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
-        {
-            Name = "Darshil Shah",
-            Email = "sdarshil786@gmail.com",
-            Url = new Uri("https://github.com/your-repo/kyc-document-api")
-        },
-        License = new Microsoft.OpenApi.Models.OpenApiLicense
-        {
-            Name = "MIT License",
-            Url = new Uri("https://opensource.org/licenses/MIT")
-        },
-
-    }    
-    );
-
-    // Add file upload support
-    c.OperationFilter<SwaggerFileOperationFilter>();
-
-    // Add XML documentation if available
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        c.IncludeXmlComments(xmlPath);
-    }
-    // Add examples and schemas
-    c.EnableAnnotations();    
-});
+        var uploadPath = builder.Configuration["FileStorage:BasePath"] ?? "wwwroot/uploads";
+        return Directory.Exists(uploadPath) ? HealthCheckResult.Healthy("File storage accessible") : HealthCheckResult.Unhealthy("File storage not accessible");
+    });
 
 
-// Configure PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -97,7 +45,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.EnableDetailedErrors(builder.Environment.IsDevelopment());
 });
 
-// Register OCR Configuration
+
 builder.Services.AddSingleton(serviceProvider =>
 {
     var configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -116,7 +64,6 @@ builder.Services.AddSingleton(serviceProvider =>
 });
 
 
-// Register services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
 builder.Services.AddScoped<ITextPatternService, TextPatternService>();
@@ -129,75 +76,69 @@ builder.Services.AddScoped<IOCRService, ProductionOCRService>();
 builder.Services.AddScoped<ITrainingDataService, TrainingDataService>();
 builder.Services.AddScoped<IMLModelTrainingService, MLModelTrainingService>();
 
-// Configure CORS for production
-builder.Services.AddCors(options =>
+builder.Services.AddSwaggerGen(c =>
 {
-    options.AddPolicy("Production", policy =>
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        policy.WithOrigins("https://yourdomain.com", "https://app.yourdomain.com")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        Title = "KYC Document Management API",
+        Version = "v1.0.0",
+        Description = "AI-Powered Indian KYC Document Management System",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "Darshil Shah",
+            Email = "sdarshil786@gmail.com",
+            Url = new Uri("https://github.com/your-repo/kyc-document-api")
+        },
+        License = new Microsoft.OpenApi.Models.OpenApiLicense
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        },
     });
 
-    options.AddPolicy("Development", policy =>
+    c.OperationFilter<SwaggerFileOperationFilter>();
+
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+        c.IncludeXmlComments(xmlPath);
+    }
+
+    c.EnableAnnotations();
 });
 
-// Configure file upload limits
-builder.Services.Configure<IISServerOptions>(options =>
-{
-    options.MaxRequestBodySize = 10 * 1024 * 1024; // 10MB
-});
-
-// Add health checks
-builder.Services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>().AddCheck("file-storage", () =>
-{
-    var uploadPath = builder.Configuration["FileStorage:BasePath"] ?? "wwwroot/uploads";
-    return Directory.Exists(uploadPath) ? HealthCheckResult.Healthy("File storage accessible") : HealthCheckResult.Unhealthy("File storage not accessible");
-});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
+    app.UseSwaggerUI(options =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "KYC Document API V1");
-        c.RoutePrefix = string.Empty;
-        c.DocumentTitle = "KYC Document Management API";
-        c.DefaultModelsExpandDepth(-1);
-        c.DisplayRequestDuration();
-        c.EnableFilter();
-        c.ShowExtensions();
-    });
+        options.SwaggerEndpoint("/swagger/Backend/swagger.json", "Backend");
+    });    
 }
 else
-{
-    // Production-only middleware
-    app.UseHsts();
     app.UseHttpsRedirection();
-}
+
+var customWebRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "frontend");
+var fileProvider = new PhysicalFileProvider(customWebRootPath);
+app.MapFallbackToFile("/index.html", new StaticFileOptions { FileProvider = fileProvider });
+app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = fileProvider });
+app.UseStaticFiles(new StaticFileOptions { FileProvider = fileProvider });
 
 
-// Add custom middleware
+app.UseHttpsRedirection();
+app.UseCors(app.Environment.IsDevelopment() ? "Development" : "Production");
+app.UseRouting();
+app.UseAuthorization();
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<RateLimitingMiddleware>();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-app.UseHttpsRedirection();
-app.UseCors(app.Environment.IsDevelopment() ? "Development" : "Production");
-app.UseStaticFiles();
-app.UseRouting();
-app.UseAuthorization();
 
-// Add health check endpoint
 app.UseHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     ResponseWriter = async (context, report) =>
@@ -221,7 +162,7 @@ app.UseHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 
 app.MapControllers();
 
-// Database migration
+
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -233,10 +174,10 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         Log.Error(ex, "An error occurred while migrating the database");
-    }    
+    }
 }
 
-// Startup logging
+
 Log.Information("=== KYC Document API Starting ===");
 Log.Information("Environment: {Environment}", app.Environment.EnvironmentName);
 Log.Information("Version: 1.0.0");
@@ -256,7 +197,7 @@ finally
     Log.CloseAndFlush();
 }
 
-// Swagger File Operation Filter for file uploads
+
 public class SwaggerFileOperationFilter : IOperationFilter
 {
     public void Apply(Microsoft.OpenApi.Models.OpenApiOperation operation, OperationFilterContext context)
