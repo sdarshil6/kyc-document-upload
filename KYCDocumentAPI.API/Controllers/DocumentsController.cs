@@ -3,7 +3,9 @@ using KYCDocumentAPI.API.Models.Requests;
 using KYCDocumentAPI.API.Models.Responses;
 using KYCDocumentAPI.Core.Entities;
 using KYCDocumentAPI.Core.Enums;
+using KYCDocumentAPI.Core.Extensions;
 using KYCDocumentAPI.Infrastructure.Data;
+using System.Diagnostics;
 
 namespace KYCDocumentAPI.API.Controllers
 {
@@ -34,14 +36,13 @@ namespace KYCDocumentAPI.API.Controllers
         {
             try
             {
-                // Validate user exists
-                var user = await _context.Users.FindAsync(request.UserId);
+                var userId = Guid.Parse("b24ab495-ab50-47c0-a060-9aa3a3e5bcf3");
+                var user = await _context.Users.FindAsync(userId);
                 if (user == null)
                 {
                     return BadRequest(ApiResponse<DocumentUploadResponse>.ErrorResponse("User not found"));
                 }
-
-                // Validate file
+                
                 if (!_fileStorageService.IsValidFileType(request.File))
                 {
                     return BadRequest(ApiResponse<DocumentUploadResponse>.ErrorResponse("Invalid file type"));
@@ -51,12 +52,10 @@ namespace KYCDocumentAPI.API.Controllers
                 {
                     return BadRequest(ApiResponse<DocumentUploadResponse>.ErrorResponse("File size exceeds limit"));
                 }
-
-                // Save file
-                var subfolder = $"documents/{request.UserId}/{request.DocumentType}";
+               
+                var subfolder = $"documents/{userId}/{request.DocumentType.GetDescription()}";
                 var filePath = await _fileStorageService.SaveFileAsync(request.File, subfolder);
-
-                // Create document record
+               
                 var document = new Document
                 {
                     DocumentType = request.DocumentType,
@@ -65,25 +64,43 @@ namespace KYCDocumentAPI.API.Controllers
                     ContentType = request.File.ContentType,
                     FileSize = request.File.Length,
                     Status = DocumentStatus.Uploaded,
-                    UserId = request.UserId
+                    UserId = userId
                 };
 
                 _context.Documents.Add(document);
                 await _context.SaveChangesAsync();
 
-                await _documentProcessingService.ProcessDocumentAsync(document.Id);
+                var newlyProcessedDocument = await _documentProcessingService.ProcessDocumentAsync(document.Id);
+                if (newlyProcessedDocument.IsRejected)
+                    throw new ApplicationException(newlyProcessedDocument.Message);
 
                 var response = new DocumentUploadResponse
                 {
-                    DocumentId = document.Id,
-                    FileName = document.FileName,
-                    DocumentType = document.DocumentType.ToString(),
-                    Status = document.Status.ToString(),
-                    Message = "Document uploaded successfully and processing started",
-                    ProcessingStarted = true
+                    DocumentId = newlyProcessedDocument.Document!.Id,
+                    FileName = newlyProcessedDocument.Document.FileName,                    
+                    ContentType = newlyProcessedDocument.Document.ContentType ?? string.Empty,
+                    FileSize = newlyProcessedDocument.Document.FileSize,
+                    Status = newlyProcessedDocument.Document.Status.ToString(),
+                    InputDocumentType = newlyProcessedDocument.Document.DocumentType.GetDescription(),
+                    ClassifiedDocumentType = newlyProcessedDocument.Document.DocumentType.GetDescription(),
+                    ExtractedData = newlyProcessedDocument.DocumentData != null ? new ExtractedDocumentData
+                    {
+                        FullName = newlyProcessedDocument.DocumentData.FullName,
+                        DateOfBirth = newlyProcessedDocument.DocumentData.DateOfBirth,
+                        Gender = newlyProcessedDocument.DocumentData.Gender,
+                        AadhaarNumber = newlyProcessedDocument.DocumentData.AadhaarNumber,
+                        PANNumber = newlyProcessedDocument.DocumentData.PANNumber,
+                        PassportNumber = newlyProcessedDocument.DocumentData.PassportNumber,                      
+                        Address = newlyProcessedDocument.DocumentData.Address,
+                        City = newlyProcessedDocument.DocumentData.City,
+                        State = newlyProcessedDocument.DocumentData.State,
+                        PinCode = newlyProcessedDocument.DocumentData.PinCode,
+                        ExtractionConfidence = Math.Round((newlyProcessedDocument.DocumentData.ExtractionConfidence * 100), 2)
+                    } : null,
+                    Message = "Document classified and extracted successfully."
                 };
 
-                return Ok(ApiResponse<DocumentUploadResponse>.SuccessResponse(response, "Document uploaded successfully"));
+                return Ok(ApiResponse<DocumentUploadResponse>.SuccessResponse(response, "Processing Completed."));
             }
             catch (Exception ex)
             {
@@ -101,7 +118,7 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var documents = await _context.Documents
-                    .Include(d => d.DocumentData)                    
+                    .Include(d => d.DocumentData)
                     .Where(d => d.UserId == userId)
                     .Select(d => new DocumentDto
                     {
@@ -127,7 +144,7 @@ namespace KYCDocumentAPI.API.Controllers
                             State = d.DocumentData.State,
                             PinCode = d.DocumentData.PinCode,
                             ExtractionConfidence = d.DocumentData.ExtractionConfidence
-                        } : null                        
+                        } : null
                     })
                     .ToListAsync();
 
@@ -150,9 +167,9 @@ namespace KYCDocumentAPI.API.Controllers
             {
                 var document = await _context.Documents.Include(d => d.DocumentData).FirstOrDefaultAsync(d => d.Id == id);
 
-                if (document == null)                
+                if (document == null)
                     return NotFound(ApiResponse<DocumentDto>.ErrorResponse("Document not found"));
-                
+
 
                 var documentDto = new DocumentDto
                 {
@@ -178,7 +195,7 @@ namespace KYCDocumentAPI.API.Controllers
                         State = document.DocumentData.State,
                         PinCode = document.DocumentData.PinCode,
                         ExtractionConfidence = document.DocumentData.ExtractionConfidence
-                    } : null                    
+                    } : null
                 };
 
                 return Ok(ApiResponse<DocumentDto>.SuccessResponse(documentDto, "Document retrieved successfully"));
@@ -217,7 +234,7 @@ namespace KYCDocumentAPI.API.Controllers
                 _logger.LogError(ex, "Error downloading document {DocumentId}", id);
                 return StatusCode(500, "Error downloading file");
             }
-        }        
+        }
 
         /// <summary>
         /// Delete a document
@@ -228,9 +245,9 @@ namespace KYCDocumentAPI.API.Controllers
             try
             {
                 var document = await _context.Documents.FindAsync(documentId);
-                if (document == null)                
+                if (document == null)
                     return NotFound(ApiResponse<bool>.ErrorResponse("Document not found"));
-                
+
                 // Delete file from storage
                 await _fileStorageService.DeleteFileAsync(document.FilePath);
 
@@ -260,8 +277,8 @@ namespace KYCDocumentAPI.API.Controllers
                     return NotFound(ApiResponse<bool>.ErrorResponse("User not found."));
                 else if (user.Documents == null || user.Documents.Count == 0)
                     return NotFound(ApiResponse<bool>.ErrorResponse("User has no documents."));
-                                
-                foreach(var document in user.Documents)
+
+                foreach (var document in user.Documents)
                 {
                     try
                     {
@@ -274,11 +291,11 @@ namespace KYCDocumentAPI.API.Controllers
                         _logger.LogError("Error occured inside DeleteAllDocumentsOfUser() in DocumentsController.cs while deleting document with documentId " + document.Id + " : " + ex);
                         throw;
                     }
-                }                                                            
+                }
                 await _context.SaveChangesAsync();
 
                 return Ok(ApiResponse<bool>.SuccessResponse(true, "Documents of user with userId " + userId + " are deleted successfully."));
-            }           
+            }
             catch (Exception ex)
             {
                 _logger.LogError("Error occured inside DeleteAllDocumentsOfUser() in DocumentsController.cs : " + ex);

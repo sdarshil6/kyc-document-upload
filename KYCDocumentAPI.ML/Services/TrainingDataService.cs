@@ -9,29 +9,12 @@ namespace KYCDocumentAPI.ML.Services
     {
         private readonly ILogger<TrainingDataService> _logger;
         private readonly string[] _validImageExtensions = { ".jpg", ".jpeg", ".png"};
-        private readonly string[] _documentTypes = { "Aadhaar", "PAN", "Passport", "DrivingLicense", "VoterID" };
+        private readonly string[] _documentTypes = { "Aadhaar Front", "Aadhaar Back", "Aadhaar Regular", "PAN", "Passport", "Driving License", "Voter Id" };
 
         public TrainingDataService(ILogger<TrainingDataService> logger)
         {
             _logger = logger;
-        }
-
-        public async Task<List<ImageData>> LoadTrainingDataOfParticularDocumentTypeAsync(string dataPath, string documentType)
-        {
-            try
-            {
-                if (!Directory.Exists(dataPath))
-                    throw new DirectoryNotFoundException($"Training data directory not found: {dataPath}");
-
-                var images = await LoadImagesFromFolderAsync(dataPath, documentType);
-                return images;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error occured inside LoadTrainingDataOfParticularDocumentTypeAsync() in TrainingDataService.cs : " + ex);
-                throw;
-            }
-        }
+        }        
 
         public async Task<List<ImageData>> LoadTrainingDataAsync(string dataPath)
         {
@@ -108,7 +91,7 @@ namespace KYCDocumentAPI.ML.Services
         }
 
 
-        public async Task<bool> ValidateImageAsync(string imagePath)
+        private async Task<bool> ValidateImageAsync(string imagePath)
         {
             try
             {

@@ -12,17 +12,18 @@ namespace KYCDocumentAPI.ML.Services
         // Indian document patterns
         private readonly Regex _aadhaarPattern = new(@"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex _panPattern = new(@"\b[A-Z]{5}\d{4}[A-Z]\b", RegexOptions.Compiled);
-        private readonly Regex _passportPattern = new(@"\b[A-Z]\d{7}\b", RegexOptions.Compiled);
-        private readonly Regex _licensePattern = new(@"\b[A-Z]{2}\d{2}\s?\d{11}\b", RegexOptions.Compiled);
+        private readonly Regex _passportPattern = new(@"\b[A-Z]\d{7}\b", RegexOptions.Compiled);        
 
         // Text indicators for different document types
         private readonly Dictionary<DocumentType, string[]> _documentKeywords = new()
         {
-            [DocumentType.Aadhaar] = new[] { "aadhaar", "aadhar", "आधार", "uid", "unique identification", "government of india", "male", "female", "dob", "date of birth" },
+            [DocumentType.AadhaarRegular] = new[] { "aadhaar", "aadhar", "आधार", "uid", "unique identification", "government of india", "male", "female", "dob", "date of birth" },
+            [DocumentType.AadhaarFront] = new[] { "aadhaar", "aadhar", "आधार", "uid", "unique identification", "government of india", "male", "female", "dob", "date of birth" },
+            [DocumentType.AadhaarBack] = new[] { "aadhaar", "aadhar", "आधार", "uid", "unique identification", "government of india", "male", "female", "dob", "date of birth" },
             [DocumentType.PAN] = new[] { "pan", "permanent account number", "income tax department", "govt of india", "signature", "पैन" },
             [DocumentType.Passport] = new[] { "passport", "republic of india", "nationality", "indian", "place of birth", "पासपोर्ट", "type", "country code" },
             [DocumentType.DrivingLicense] = new[] { "driving license", "driving licence", "dl", "transport", "vehicle", "class", "validity", "ड्राइविंग लाइसेंस" },
-            [DocumentType.VoterID] = new[] { "election commission", "voter", "epic", "electors photo identity card", "मतदाता पहचान पत्र" }            
+            [DocumentType.VoterId] = new[] { "election commission", "voter", "epic", "electors photo identity card", "मतदाता पहचान पत्र" }            
         };
 
         public TextPatternService(ILogger<TextPatternService> logger)
@@ -203,7 +204,13 @@ namespace KYCDocumentAPI.ML.Services
                 float patternBonus = 0f;
                 switch (documentType)
                 {
-                    case DocumentType.Aadhaar when _aadhaarPattern.IsMatch(text):
+                    case DocumentType.AadhaarRegular when _aadhaarPattern.IsMatch(text):
+                        patternBonus = 0.3f;
+                        break;
+                    case DocumentType.AadhaarFront when _aadhaarPattern.IsMatch(text):
+                        patternBonus = 0.3f;
+                        break;
+                    case DocumentType.AadhaarBack when _aadhaarPattern.IsMatch(text):
                         patternBonus = 0.3f;
                         break;
                     case DocumentType.PAN when _panPattern.IsMatch(text):

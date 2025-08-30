@@ -6,7 +6,7 @@ namespace KYCDocumentAPI.ML.Models
     {
         public string OriginalText { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
-        public DocumentType PredictedDocumentType { get; set; } = DocumentType.Other;
+        public DocumentType PredictedDocumentType { get; set; }
         public float Confidence { get; set; }
         public Dictionary<DocumentType, float> DocumentTypeConfidences { get; set; } = new();
 

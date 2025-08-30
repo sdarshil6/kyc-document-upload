@@ -1,6 +1,8 @@
 ﻿using KYCDocumentAPI.Core.Entities;
 using KYCDocumentAPI.Core.Enums;
+using KYCDocumentAPI.Core.Extensions;
 using KYCDocumentAPI.Infrastructure.Data;
+using KYCDocumentAPI.Infrastructure.DTOs;
 using KYCDocumentAPI.Infrastructure.Models;
 using KYCDocumentAPI.ML.Models;
 using KYCDocumentAPI.ML.Services;
@@ -49,8 +51,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
             try
             {
                 _logger.LogInformation("Extracting data from {DocumentType} document: {FilePath}", documentType, filePath);
-
-                // Extract text using OCR               
+                     
                 var ocrResult = await _ocrService.ExtractTextFromImageAsync(filePath);
                 if (!ocrResult.Success)
                 {
@@ -61,8 +62,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                         ExtractionConfidence = 0.0
                     };
                 }
-
-                // Analyze patterns in the extracted text
+              
                 var patternResult = _textPatternService.AnalyzeText(ocrResult.ExtractedText, Path.GetFileName(filePath));
 
                 var result = new DocumentExtractionResult
@@ -71,11 +71,18 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     ExtractionConfidence = ocrResult.OverallConfidence * 0.7 + patternResult.Confidence * 0.3,
                     RawData = ocrResult.ExtractedText
                 };
-
-                // Extract structured data based on document type and patterns
+                
                 switch (documentType)
                 {
-                    case DocumentType.Aadhaar:
+                    case DocumentType.AadhaarRegular:
+                        ExtractAadhaarData(result, patternResult);
+                        break;
+
+                    case DocumentType.AadhaarFront:
+                        ExtractAadhaarData(result, patternResult);
+                        break;
+
+                    case DocumentType.AadhaarBack:
                         ExtractAadhaarData(result, patternResult);
                         break;
 
@@ -96,8 +103,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                         break;
                 }
 
-                _logger.LogInformation("Data extraction completed for {DocumentType} with confidence {Confidence}",
-                    documentType, result.ExtractionConfidence);
+                _logger.LogInformation("Data extraction completed for {DocumentType} with confidence {Confidence}", documentType, result.ExtractionConfidence);
 
                 return result;
             }
@@ -111,80 +117,97 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     ExtractionConfidence = 0.0
                 };
             }
-        }        
+        }
 
-        public async Task ProcessDocumentAsync(Guid documentId)
+        public async Task<ProcessedDocumentDto> ProcessDocumentAsync(Guid documentId)
         {
+            var processedDocument = new ProcessedDocumentDto();
+
             try
             {
-                var document = await _context.Documents.FindAsync(documentId);
+                var document = await _context.Documents.Include(d => d.DocumentData).FirstOrDefaultAsync(d => d.Id == documentId);
+
                 if (document == null)
                 {
                     _logger.LogWarning("Document {DocumentId} not found for processing", documentId);
-                    return;
+
+                    return new ProcessedDocumentDto
+                    {
+                        Document = null,
+                        DocumentData = null,
+                        IsRejected = true,
+                        Message = "Document not found"
+                    };
                 }
 
                 document.Status = DocumentStatus.Processing;
                 await _context.SaveChangesAsync();
-
-                // Classify document type (if not already specified)
+               
                 var classificationResult = await ClassifyDocumentAsync(document.FilePath);
 
-                // Update document type if classification is confident and different
-                if (classificationResult.IsConfident() && classificationResult.PredictedLabel != document.DocumentType.ToString())
+                if (classificationResult.IsConfident() && classificationResult.PredictedLabel != document.DocumentType.GetDescription() && EnumExtensions.TryParseWithSpaces(classificationResult.PredictedLabel, out DocumentType parsedType))
                 {
-                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType} based on classification", documentId, document.DocumentType, classificationResult.PredictedLabel);
-                    if (Enum.TryParse<DocumentType>(classificationResult.PredictedLabel, ignoreCase: true, out var parsedType))                    
-                        document.DocumentType = parsedType;                    
+                    _logger.LogInformation("Document {DocumentId} type updated from {OldType} to {NewType}",documentId, document.DocumentType, parsedType);
+                    document.DocumentType = parsedType;
                 }
-
-                // Extract data from document
+                
                 var extractionResult = await ExtractDocumentDataAsync(document.FilePath, document.DocumentType);
 
                 if (extractionResult.Success)
                 {
-                    // Create or update document data
-                    var documentData = await _context.DocumentData.FirstOrDefaultAsync(dd => dd.DocumentId == documentId) ?? new DocumentData { DocumentId = documentId };
+                    var documentData = document.DocumentData ?? new DocumentData { DocumentId = documentId };
 
                     documentData.FullName = extractionResult.FullName;
                     documentData.DateOfBirth = extractionResult.DateOfBirth;
                     documentData.Gender = extractionResult.Gender;
                     documentData.AadhaarNumber = extractionResult.AadhaarNumber;
                     documentData.PANNumber = extractionResult.PANNumber;
-                    documentData.PassportNumber = extractionResult.PassportNumber;
-                    documentData.IssueDate = extractionResult.IssueDate;
-                    documentData.ExpiryDate = extractionResult.ExpiryDate;
-                    documentData.Address = extractionResult.Address;
+                    documentData.PassportNumber = extractionResult.PassportNumber;                    
+                    documentData.Address = extractionResult.Address?.Trim().Substring(0, Math.Min(2000, extractionResult.Address.Trim().Length));
                     documentData.City = extractionResult.City;
                     documentData.State = extractionResult.State;
                     documentData.PinCode = extractionResult.PinCode;
                     documentData.ExtractionConfidence = extractionResult.ExtractionConfidence;
                     documentData.RawExtractedData = extractionResult.RawData;
 
-                    if (documentData.Id == Guid.Empty)
-                    {
+                    if (document.DocumentData == null)
                         _context.DocumentData.Add(documentData);
-                    }
 
-                    await _context.SaveChangesAsync();
-                }                
+                    document.DocumentData = documentData;
+                }               
+                document.Status = DocumentStatus.ClassifiedAndExtracted;
 
-                _logger.LogInformation("Document {DocumentId} processing completed successfully", documentId);
+                await _context.SaveChangesAsync();
+
+                processedDocument.Document = document;
+                processedDocument.DocumentData = document.DocumentData;
+                processedDocument.IsRejected = false;
+                processedDocument.Message = "Processed successfully";
+
+                _logger.LogInformation("Document {DocumentId} processed successfully", documentId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing document {DocumentId} inside ProcessDocumentAsync() in DocumentProcessingService.cs", documentId);
+                _logger.LogError(ex, "Error processing document {DocumentId}", documentId);
 
-                // Update document status to reflect error
                 var document = await _context.Documents.FindAsync(documentId);
                 if (document != null)
                 {
                     document.Status = DocumentStatus.Rejected;
                     await _context.SaveChangesAsync();
+
+                    processedDocument.Document = document;
                 }
+
+                processedDocument.DocumentData = null;
+                processedDocument.IsRejected = true;
+                processedDocument.Message = ex.Message;
             }
+
+            return processedDocument;
         }
-        
+
+
         private void ExtractAadhaarData(DocumentExtractionResult result, DocumentPatternResult patternResult)
         {
             try

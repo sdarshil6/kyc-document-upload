@@ -3,9 +3,8 @@
     public enum DocumentStatus
     {
         Uploaded = 1,
-        Processing = 2,
-        Verified = 3,
-        Rejected = 4,
-        Expired = 5
+        Processing = 2,       
+        Rejected = 3,        
+        ClassifiedAndExtracted = 4
     }
 }

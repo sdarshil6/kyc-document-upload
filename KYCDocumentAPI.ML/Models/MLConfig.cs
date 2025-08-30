@@ -12,8 +12,7 @@
 
         // Data Configuration
         public string TrainingDataPath { get; set; } = "TrainingData/Images";
-        public string ModelOutputPath { get; set; } = "Models/Trained/DocumentClassifier.zip";
-        public string TempModelPath { get; set; } = "Models/Temp";
+        public string ModelOutputPath { get; set; } = "Machine Learning Models/Trained/DocumentClassifier.zip";        
         public float ValidationSplit { get; set; } = 0.2f;
 
         // Performance Configuration
@@ -23,18 +22,16 @@
 
         // Classification Configuration
         public float MinimumConfidenceThreshold { get; set; } = 0.7f;
-        public int NumberOfClasses { get; set; } = 9;
+        public int NumberOfClasses { get; set; } = 7;
         public string[] ClassLabels { get; set; } = new[]
         {
-            "Aadhaar",
+            "Aadhaar Back",
+            "Aadhaar Front",
+            "Aadhaar Regular",
             "PAN",
             "Passport",
-            "DrivingLicense",
-            "VoterID",
-            "RationCard",
-            "BankPassbook",
-            "UtilityBill",
-            "Other"
+            "Driving License",
+            "Voter Id"            
         };
 
         // Quality Assurance

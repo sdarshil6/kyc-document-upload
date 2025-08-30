@@ -69,7 +69,7 @@ namespace KYCDocumentAPI.Infrastructure.Services
                 await file.CopyToAsync(fileStream);
 
                 _logger.LogInformation("File saved successfully: {FilePath}", relativePath);
-                return relativePath;
+                return filePath;
             }
             catch (Exception ex)
             {

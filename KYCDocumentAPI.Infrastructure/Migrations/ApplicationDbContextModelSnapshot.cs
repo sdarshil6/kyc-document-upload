@@ -89,8 +89,8 @@ namespace KYCDocumentAPI.Infrastructure.Migrations
                         .HasColumnType("character varying(12)");
 
                     b.Property<string>("Address")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("City")
                         .HasMaxLength(50)

@@ -9,11 +9,6 @@ namespace KYCDocumentAPI.API.Models.Requests
         public IFormFile File { get; set; } = null!;
 
         [Required]
-        public DocumentType DocumentType { get; set; }
-
-        [Required]
-        public Guid UserId { get; set; }
-
-        public string? Notes { get; set; }
+        public DocumentType DocumentType { get; set; }          
     }
 }

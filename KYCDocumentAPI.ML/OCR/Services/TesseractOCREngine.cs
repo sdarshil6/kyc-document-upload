@@ -46,17 +46,13 @@ namespace KYCDocumentAPI.ML.OCR.Services
             string processedImagePath = string.Empty;
             try
             {
-                if (!_isInitialized)
-                {
+                if (!_isInitialized)                
                     await InitializeAsync();
-                }
-
+                
                 _logger.LogInformation("Starting Tesseract OCR processing for {ImagePath}", imagePath);
 
-                // 🔑 Ensure absolute path
-                string fullImagePath = Path.IsPathRooted(imagePath)
-                    ? imagePath
-                    : Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", imagePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                string normalizedPath = imagePath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                string fullImagePath = Path.IsPathRooted(normalizedPath) ? normalizedPath : Path.Combine(Directory.GetCurrentDirectory(), normalizedPath);
 
                 if (!File.Exists(fullImagePath))
                     throw new FileNotFoundException($"Image file not found: {fullImagePath}");

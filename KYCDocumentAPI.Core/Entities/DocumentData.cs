@@ -32,7 +32,7 @@ namespace KYCDocumentAPI.Core.Entities
         public DateTime? ExpiryDate { get; set; }
 
         
-        [MaxLength(500)]
+        [MaxLength(2000)]
         public string? Address { get; set; }
 
         [MaxLength(50)]

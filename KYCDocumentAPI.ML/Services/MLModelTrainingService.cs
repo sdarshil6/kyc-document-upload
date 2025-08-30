@@ -13,12 +13,24 @@ namespace KYCDocumentAPI.ML.Services
         private readonly MLContext _mlContext;
         private readonly ILogger<MLModelTrainingService> _logger;
         private readonly ITrainingDataService _trainingDataService;
+
+        // Model + concurrency control
         private ITransformer? _trainedModel;
-        private PredictionEngine<ImageData, ImagePrediction>? _predictionEngine;
+        private readonly ReaderWriterLockSlim _modelLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+
         private MLConfig _currentConfig;
         private TrainingMetrics? _lastTrainingMetrics;
 
-        public bool IsModelLoaded => _trainedModel != null && _predictionEngine != null;        
+        public bool IsModelLoaded
+        {
+            get
+            {
+                _modelLock.EnterReadLock();
+                try { return _trainedModel != null; }
+                finally { _modelLock.ExitReadLock(); }
+            }
+        }
+
         public MLConfig CurrentConfig => _currentConfig;
 
         public MLModelTrainingService(ILogger<MLModelTrainingService> logger, ITrainingDataService trainingDataService)
@@ -28,97 +40,154 @@ namespace KYCDocumentAPI.ML.Services
             _trainingDataService = trainingDataService;
             _currentConfig = MLConfig.GetDevelopmentConfig();
         }
-       
-        public async Task<TrainingMetrics> TrainModelAsync()
+
+        public async Task<TrainingMetrics> TrainModelAsync(bool isLimitedToFewDocumentTypes = false)
         {
             var trainingConfig = _currentConfig;
             var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                _logger.LogInformation("Starting ML.NET model training with config: {Config}", JsonSerializer.Serialize(trainingConfig));
-                
+                string mode = isLimitedToFewDocumentTypes ? "Aadhaar + PAN only" : "All classes";
+                string modelName = isLimitedToFewDocumentTypes ? "DocumentClassifier_Limited" : "DocumentClassifier";
+
+                _logger.LogInformation("Starting ML.NET model training ({Mode}) with config: {Config}", mode, JsonSerializer.Serialize(trainingConfig));
+
                 var configErrors = trainingConfig.ValidateConfiguration();
-                if (configErrors.Any())                
+                if (configErrors.Any())
                     throw new ArgumentException($"Invalid configuration: {string.Join(", ", configErrors)}");
-                
+
                 var metrics = new TrainingMetrics
                 {
-                    ModelName = "DocumentClassifier",
+                    ModelName = modelName,
                     TrainingStartTime = DateTime.UtcNow,
                     Configuration = trainingConfig
-                };                                
+                };
 
                 var allImages = await _trainingDataService.LoadTrainingDataAsync(trainingConfig.TrainingDataPath);
-                if (allImages.Count < 5)                
-                    throw new InvalidOperationException($"Insufficient training data: {allImages.Count} images. Need at least 50.");                                               
-                
-                metrics.TotalTrainingImages = allImages.Count;                
-                metrics.NumberOfClasses = allImages.GroupBy(x => x.Label).Count();
-                
-                foreach (var group in allImages.GroupBy(x => x.Label))                
-                    metrics.ImagesPerClass[group.Key] = group.Count();
-                
-                _logger.LogInformation("Training set: {TrainingCount} images", allImages.Count);                
-                
-                var trainingDataView = _mlContext.Data.LoadFromEnumerable(allImages);                                               
 
-                var pipeline = BuildTrainingPipeline(trainingConfig);                                
+                var dataset = isLimitedToFewDocumentTypes
+                    ? allImages.Where(x =>
+                        string.Equals(x.Label, "Aadhaar Regular", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Label, "Aadhaar Front", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Label, "Aadhaar Back", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Label, "PAN", StringComparison.OrdinalIgnoreCase))
+                        .ToList()
+                    : allImages?.ToList();
+
+                if (dataset == null || dataset.Count == 0)
+                    throw new InvalidOperationException("No training images found in the configured training path.");
+                
+                var classesCount = dataset.GroupBy(x => x.Label).Count();
+                if (classesCount < 2)
+                    throw new InvalidOperationException($"Insufficient distinct classes to train (found {classesCount}).");
+
+                metrics.TotalTrainingImages = dataset.Count;
+                metrics.NumberOfClasses = classesCount;
+                foreach (var group in dataset.GroupBy(x => x.Label))
+                    metrics.ImagesPerClass[group.Key] = group.Count();
+
+                _logger.LogInformation("Training set: {Count} images ({Mode})", dataset.Count, mode);
+
+                var allDataView = _mlContext.Data.LoadFromEnumerable(dataset);
+                var split = _mlContext.Data.TrainTestSplit(allDataView, testFraction: 0.2, seed: 123);
+                var trainSet = split.TrainSet;
+                var validationSet = split.TestSet;
+               
+                var pipeline = BuildTrainingPipeline(trainingConfig)
+                    .Append(_mlContext.MulticlassClassification.Trainers
+                        .ImageClassification(featureColumnName: "Image", labelColumnName: "Label"))                    
+                    .Append(_mlContext.Transforms.Conversion.MapKeyToValue(outputColumnName: "PredictedLabel", inputColumnName: "PredictedLabel"));
 
                 _logger.LogInformation("Starting neural network training...");
-               
-                var trainer = pipeline.Append(_mlContext.MulticlassClassification.Trainers.ImageClassification(featureColumnName: "ImagePath", labelColumnName: "Label").Append(_mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel")));                               
 
-                _trainedModel = trainer.Fit(trainingDataView);
+                ITransformer fitted = pipeline.Fit(trainSet);
+
+                _modelLock.EnterWriteLock();
+                try
+                {
+                    _trainedModel = fitted;
+                }
+                finally
+                {
+                    _modelLock.ExitWriteLock();
+                }
 
                 stopwatch.Stop();
-                metrics.TrainingEndTime = DateTime.UtcNow;                               
+                metrics.TrainingEndTime = DateTime.UtcNow;
 
                 await SaveModelAsync(trainingConfig.ModelOutputPath);
+                
+                float trainAcc;
+                {
+                    ITransformer? modelSnapshot;
+                    _modelLock.EnterReadLock();
+                    try { modelSnapshot = _trainedModel; }
+                    finally { _modelLock.ExitReadLock(); }
 
-                // Create prediction engine
-                _predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageData, ImagePrediction>(_trainedModel);
+                    var trainPredictions = modelSnapshot!.Transform(trainSet);
+                    var trainEval = _mlContext.MulticlassClassification.Evaluate(
+                        trainPredictions, labelColumnName: "Label", predictedLabelColumnName: "PredictedLabel");
+                    trainAcc = (float)trainEval.MacroAccuracy;
+                }
                 
+                float valAcc;
+                {
+                    ITransformer? modelSnapshot;
+                    _modelLock.EnterReadLock();
+                    try { modelSnapshot = _trainedModel; }
+                    finally { _modelLock.ExitReadLock(); }
+
+                    var valPredictions = modelSnapshot!.Transform(validationSet);
+                    var valEval = _mlContext.MulticlassClassification.Evaluate(
+                        valPredictions, labelColumnName: "Label", predictedLabelColumnName: "PredictedLabel");
+                    valAcc = (float)valEval.MacroAccuracy;
+                }
+
+                metrics.ValidationAccuracy = valAcc;
+                metrics.FinalAccuracy = valAcc;
+
                 metrics.ValidateQuality();
-                
+
                 _currentConfig = trainingConfig;
                 _lastTrainingMetrics = metrics;
 
-                _logger.LogInformation("Model training completed: {Summary}", metrics.GetTrainingSummary());
-               
+                _logger.LogInformation("Model training completed ({Mode}). Train Acc={TrainAcc:P2}, Val Acc={ValAcc:P2}", mode, trainAcc, valAcc);
+
                 return metrics;
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                _logger.LogError(ex, "Error during model training");                
-
+                _logger.LogError(ex, "Error during model training");
                 throw new InvalidOperationException($"Model training failed: {ex.Message}", ex);
             }
         }
-        
-        private EstimatorChain<ValueToKeyMappingTransformer> BuildTrainingPipeline(MLConfig config)
+
+
+        private IEstimator<ITransformer> BuildTrainingPipeline(MLConfig config)
         {
             try
             {
                 _logger.LogInformation("Building ML.NET pipeline with architecture: {Architecture}", config.Architecture);
 
-                var pipeline = _mlContext.Transforms.LoadImages(outputColumnName: "Image", imageFolder: "", inputColumnName: "ImagePath")
-                    .Append(_mlContext.Transforms.ResizeImages(outputColumnName: "ImageResized", inputColumnName: "Image", imageWidth: config.ImageWidth, imageHeight: config.ImageHeight))
-                    .Append(_mlContext.Transforms.ExtractPixels(outputColumnName: "Pixels", inputColumnName: "ImageResized"))
+                var pipeline = _mlContext.Transforms.LoadRawImageBytes(
+                        outputColumnName: "Image",
+                        imageFolder: "",
+                        inputColumnName: nameof(ImageData.ImagePath))
                     .Append(_mlContext.Transforms.Conversion.MapValueToKey("Label"))
-                    .AppendCacheCheckpoint(_mlContext);
+                    .AppendCacheCheckpoint(_mlContext);                
 
                 return pipeline;
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error occured inside BuildTrainingPipeline() in MLModelTrainingService.cs : " + ex);
+                _logger.LogError("Error occurred inside BuildTrainingPipeline() in MLModelTrainingService.cs : " + ex);
                 throw;
             }
         }
-        
-        public async Task<bool> LoadModelAsync(string? modelPath = null)
+
+        public Task<bool> LoadModelAsync(string? modelPath = null)
         {
             try
             {
@@ -127,28 +196,38 @@ namespace KYCDocumentAPI.ML.Services
                 if (!File.Exists(pathToLoad))
                 {
                     _logger.LogWarning("Model file not found: {ModelPath}", pathToLoad);
-                    return false;
+                    return Task.FromResult(false);
                 }
 
-                _trainedModel = _mlContext.Model.Load(pathToLoad, out var modelInputSchema);
-                _predictionEngine = _mlContext.Model.CreatePredictionEngine<ImageData, ImagePrediction>(_trainedModel);
+                var loaded = _mlContext.Model.Load(pathToLoad, out var _);
+
+                _modelLock.EnterWriteLock();
+                try
+                {
+                    _trainedModel = loaded;
+                }
+                finally
+                {
+                    _modelLock.ExitWriteLock();
+                }
 
                 _logger.LogInformation("Model loaded successfully from: {ModelPath}", pathToLoad);
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading model from: {ModelPath}", modelPath);
-                return false;
+                return Task.FromResult(false);
             }
         }
-        
-        public async Task<bool> IsModelTrainedAsync()
+
+        public Task<bool> IsModelTrainedAsync()
         {
             try
             {
-                await Task.CompletedTask;
-                return File.Exists(_currentConfig.ModelOutputPath) || IsModelLoaded;
+                bool hasFile = File.Exists(_currentConfig.ModelOutputPath);
+                bool isLoaded = IsModelLoaded;
+                return Task.FromResult(hasFile || isLoaded);
             }
             catch (Exception ex)
             {
@@ -156,73 +235,27 @@ namespace KYCDocumentAPI.ML.Services
                 throw;
             }
         }
-        
-        public async Task<DocumentClassificationResult> ClassifyDocumentAsync(string imagePath)
-        {
-            if (!IsModelLoaded)
-            {
-                await LoadModelAsync();
-                if (!IsModelLoaded)
-                {
-                    throw new InvalidOperationException("No trained model available. Please train a model first.");
-                }
-            }
 
-            var stopwatch = Stopwatch.StartNew();
-
-            try
-            {
-                var imageData = new ImageData
-                {
-                    ImagePath = imagePath,
-                    OriginalFileName = Path.GetFileName(imagePath)
-                };
-
-                var prediction = _predictionEngine!.Predict(imageData);
-                stopwatch.Stop();                              
-
-                var result = new DocumentClassificationResult
-                {
-                    PredictedDocumentType = prediction.PredictedLabel,
-                    Confidence = prediction.Confidence,
-                    AllProbabilities = prediction.GetAllProbabilities(),
-                    IsConfident = prediction.IsConfident(_currentConfig.MinimumConfidenceThreshold),
-                    ProcessingTime = stopwatch.Elapsed,                                    
-                    RequiresManualReview = !prediction.IsConfident(_currentConfig.MinimumConfidenceThreshold)                    
-                };
-                
-                result.ConfidenceFactors = GenerateConfidenceFactors(prediction);
-
-                _logger.LogDebug("Document classified: {Result}", result.GetSummary());
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                _logger.LogError(ex, "Error classifying document: {ImagePath}", imagePath);
-
-                return new DocumentClassificationResult
-                {
-                    PredictedDocumentType = "Other",
-                    Confidence = 0f,
-                    ProcessingTime = stopwatch.Elapsed,
-                    ProcessingNotes = $"Classification error: {ex.Message}",
-                    RequiresManualReview = true
-                };
-            }
-        }
-       
         public async Task<ImagePrediction> PredictAsync(string imagePath)
         {
             try
             {
                 if (!IsModelLoaded)
                 {
-                    await LoadModelAsync();
-                    if (!IsModelLoaded)                    
-                        throw new InvalidOperationException("No trained model available.");                   
+                    var loaded = await LoadModelAsync();
+                    if (!loaded && !IsModelLoaded)
+                        throw new InvalidOperationException("No trained model available.");
                 }
+
+                ITransformer? modelSnapshot;
+                _modelLock.EnterReadLock();
+                try { modelSnapshot = _trainedModel; }
+                finally { _modelLock.ExitReadLock(); }
+
+                if (modelSnapshot == null)
+                    throw new InvalidOperationException("No trained model available.");
+
+                using var engine = _mlContext.Model.CreatePredictionEngine<ImageData, ImagePrediction>(modelSnapshot);
 
                 var imageData = new ImageData
                 {
@@ -230,7 +263,7 @@ namespace KYCDocumentAPI.ML.Services
                     OriginalFileName = Path.GetFileName(imagePath)
                 };
 
-                return _predictionEngine!.Predict(imageData);
+                return engine.Predict(imageData);
             }
             catch (Exception ex)
             {
@@ -238,53 +271,24 @@ namespace KYCDocumentAPI.ML.Services
                 throw;
             }
         }
-        
-        public async Task<List<DocumentClassificationResult>> ClassifyBatchAsync(IEnumerable<string> imagePaths)
-        {
-            try
-            {
-                var results = new List<DocumentClassificationResult>();
 
-                foreach (var imagePath in imagePaths)
-                {
-                    try
-                    {
-                        var result = await ClassifyDocumentAsync(imagePath);
-                        results.Add(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error in batch classification for: {ImagePath}", imagePath);
-                        results.Add(new DocumentClassificationResult
-                        {
-                            PredictedDocumentType = "Other",
-                            Confidence = 0f,
-                            ProcessingNotes = $"Batch processing error: {ex.Message}",
-                            RequiresManualReview = true
-                        });
-                    }
-                }
-
-                return results;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error occured inside ClassifyBatchAsync() in MLModelTrainingService.cs : " + ex);
-                throw;
-            }
-        }                
-       
-        private async Task SaveModelAsync(string modelPath)
+        private Task SaveModelAsync(string modelPath)
         {
             try
             {
                 var directory = Path.GetDirectoryName(modelPath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
                     Directory.CreateDirectory(directory);
-                }
 
-                _mlContext.Model.Save(_trainedModel!, null, modelPath);
+                ITransformer? modelSnapshot;
+                _modelLock.EnterReadLock();
+                try { modelSnapshot = _trainedModel; }
+                finally { _modelLock.ExitReadLock(); }
+
+                if (modelSnapshot == null)
+                    throw new InvalidOperationException("Cannot save model: no trained model in memory.");
+
+                _mlContext.Model.Save(modelSnapshot, inputSchema: null, filePath: modelPath);
 
                 var fileInfo = new FileInfo(modelPath);
                 if (_lastTrainingMetrics != null)
@@ -294,37 +298,13 @@ namespace KYCDocumentAPI.ML.Services
                 }
 
                 _logger.LogInformation("Model saved to: {ModelPath} ({Size} bytes)", modelPath, fileInfo.Length);
-                await Task.CompletedTask;
+                return Task.CompletedTask;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving model to: {ModelPath}", modelPath);
                 throw;
             }
-        }                
-
-        private List<string> GenerateConfidenceFactors(ImagePrediction prediction)
-        {
-            try
-            {
-                var factors = new List<string>();
-
-                if (prediction.Confidence > 0.8f)
-                    factors.Add("Strong model confidence");
-
-                var secondBest = prediction.Scores?.OrderByDescending(x => x).Skip(1).FirstOrDefault() ?? 0f;
-                var confidenceGap = prediction.Confidence - secondBest;
-
-                if (confidenceGap > 0.3f)
-                    factors.Add("Clear distinction from other document types");
-
-                return factors;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error occured inside GenerateConfidenceFactors() in MLModelTrainingService.cs : " + ex);
-                throw;
-            }
-        }                               
-    }       
+        }
+    }
 }
