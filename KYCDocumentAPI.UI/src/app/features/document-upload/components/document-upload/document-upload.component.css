@@ -2,9 +2,7 @@
 .upload-container {
     max-width: 1200px;
     width: 95%;
-    /* Added responsive width */
     margin: 2rem auto;
-    /* Reduced top margin from 4rem to 2rem */
     padding: 3rem;
     background: radial-gradient(circle at top left, #0a0f1c 0%, #121826 50%, #1a1f2c 100%);
     border-radius: 28px;
@@ -14,12 +12,9 @@
     color: #e0f7fa;
     animation: containerGlow 1s infinite alternate;
     transform: perspective(1200px) rotateX(2deg);
-    /* Ensure container can expand vertically */
     min-height: auto;
     position: relative;
-    /* Ensure proper stacking context */
     z-index: 5;
-    /* Higher than background elements but lower than app-document-upload */
 }
 
 @keyframes containerGlow {
@@ -51,51 +46,338 @@
     }
 }
 
-/* 🔹 File Input */
-.file-label {
-    display: inline-block;
-    padding: 1.4rem 2.8rem;
-    border: 2px dashed #00e5ff;
-    border-radius: 18px;
+/* 🚀 NEW: Drag & Drop Zone */
+.drag-drop-zone {
+    border: 3px dashed #00e5ff;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    margin-bottom: 1.5rem;
+    background: rgba(0, 229, 255, 0.05);
     cursor: pointer;
     transition: all 0.4s ease;
-    margin-bottom: 1.6rem;
-    background: rgba(0, 229, 255, 0.06);
     position: relative;
     overflow: hidden;
-    font-size: 1.1rem;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.file-label::before {
+.drag-drop-zone::before {
     content: "";
     position: absolute;
     top: 0;
-    left: -120%;
-    width: 120%;
+    left: -100%;
+    width: 100%;
     height: 100%;
-    background: linear-gradient(120deg, transparent, rgba(0, 229, 255, 0.25), transparent);
+    background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.1), transparent);
     transition: 0.6s;
 }
 
-.file-label:hover::before {
+.drag-drop-zone:hover::before {
     left: 100%;
 }
 
-.file-label:hover {
-    background: rgba(0, 229, 255, 0.18);
-    box-shadow: 0 0 22px cyan, inset 0 0 10px rgba(0, 229, 255, 0.3);
-    transform: scale(1.03);
+.drag-drop-zone:hover {
+    border-color: #1de9b6;
+    background: rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.3), inset 0 0 15px rgba(0, 229, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.drag-drop-zone.drag-over {
+    border-color: #1de9b6;
+    background: rgba(29, 233, 182, 0.15);
+    box-shadow: 0 0 40px rgba(29, 233, 182, 0.5), inset 0 0 20px rgba(29, 233, 182, 0.2);
+    transform: scale(1.02);
+}
+
+.drag-drop-zone.has-file {
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 25px rgba(76, 175, 80, 0.4);
+}
+
+.drag-drop-content {
+    text-align: center;
+    z-index: 2;
+    position: relative;
+}
+
+.upload-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    animation: iconFloat 2s ease-in-out infinite alternate;
+}
+
+@keyframes iconFloat {
+    from {
+        transform: translateY(0) scale(1);
+    }
+
+    to {
+        transform: translateY(-10px) scale(1.05);
+    }
+}
+
+.drag-drop-text .primary-text {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #00e5ff;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 10px #00e5ff;
+}
+
+.drag-drop-text .secondary-text {
+    display: block;
+    font-size: 1rem;
+    color: #b0bec5;
+    opacity: 0.8;
 }
 
 .file-input {
     display: none;
 }
 
+/* 🚀 NEW: File Upload Options */
+.file-upload-options {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.or-separator {
+    color: #64b5f6;
+    font-weight: 600;
+    font-size: 1rem;
+    text-shadow: 0 0 8px #64b5f6;
+}
+
+.file-label-alt {
+    display: inline-block;
+    padding: 1rem 2rem;
+    border: 2px solid #00e5ff;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    background: rgba(0, 229, 255, 0.08);
+    position: relative;
+    overflow: hidden;
+    font-size: 1rem;
+}
+
+.file-label-alt:hover {
+    background: rgba(0, 229, 255, 0.15);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+    transform: scale(1.05);
+}
+
 .glow-text {
     color: #00e5ff;
     font-weight: bold;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
+    font-size: 0.95rem;
+}
+
+/* 🚀 NEW: File Preview Section */
+.file-preview-section {
+    margin: 2rem 0;
+    padding: 2rem;
+    background: linear-gradient(145deg, #0f1419, #1a1f2c);
+    border-radius: 18px;
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.2), inset 0 0 15px rgba(0, 229, 255, 0.05);
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.preview-title {
+    font-size: 1.4rem;
+    color: #00e5ff;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 0 10px #00e5ff;
+    text-align: center;
+}
+
+.preview-container {
+    display: flex;
+    gap: 2rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.preview-image {
+    max-width: 300px;
+    max-height: 200px;
+    width: auto;
+    height: auto;
+    border-radius: 12px;
+    border: 2px solid rgba(0, 229, 255, 0.4);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+    object-fit: contain;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.preview-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+}
+
+/* Preview placeholder for when image fails to load */
+.preview-placeholder {
+    width: 300px;
+    height: 200px;
+    border: 2px dashed rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 229, 255, 0.05);
+    color: #64b5f6;
+    flex-shrink: 0;
+}
+
+.placeholder-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.7;
+}
+
+.file-info {
+    flex: 1;
+    min-width: 250px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.file-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.file-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1de9b6;
+    text-shadow: 0 0 8px #1de9b6;
+    word-break: break-word;
+}
+
+.file-size {
     font-size: 1rem;
+    color: #ffab40;
+    font-weight: 500;
+}
+
+.file-type {
+    font-size: 0.9rem;
+    color: #64b5f6;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+/* 🚀 FIXED: Remove File Button - SINGLE CROSS ONLY */
+.remove-file-btn {
+    background: linear-gradient(135deg, #ff4444, #cc0000);
+    border: 2px solid #ff6666;
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    box-shadow:
+        0 0 15px rgba(255, 68, 68, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 45px;
+    min-height: 45px;
+    position: relative;
+    overflow: hidden;
+    font-size: 0;
+    /* Hide any text content from HTML */
+}
+
+/* Single cross generated by CSS */
+.remove-file-btn::before {
+    content: "×";
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow:
+        0 0 8px rgba(255, 255, 255, 0.9),
+        0 2px 4px rgba(0, 0, 0, 0.8);
+    z-index: 3;
+    position: relative;
+    line-height: 1;
+}
+
+/* Shimmer effect */
+.remove-file-btn::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: 0.5s;
+    z-index: 1;
+}
+
+.remove-file-btn:hover {
+    background: linear-gradient(135deg, #ff6666, #ff4444);
+    border-color: #ff8888;
+    box-shadow:
+        0 0 25px rgba(255, 68, 68, 0.7),
+        0 0 40px rgba(255, 68, 68, 0.4),
+        inset 0 2px 6px rgba(255, 255, 255, 0.3);
+    transform: scale(1.15);
+}
+
+.remove-file-btn:hover::before {
+    color: #ffffff;
+    text-shadow:
+        0 0 15px rgba(255, 255, 255, 1),
+        0 2px 4px rgba(0, 0, 0, 1);
+    transform: rotate(90deg);
+}
+
+.remove-file-btn:hover::after {
+    left: 100%;
+}
+
+.remove-file-btn:active {
+    background: linear-gradient(135deg, #ff8888, #ff6666);
+    transform: scale(1.1);
+    box-shadow:
+        0 0 20px rgba(255, 68, 68, 0.8),
+        inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.remove-file-btn:focus {
+    outline: 3px solid rgba(255, 68, 68, 0.6);
+    outline-offset: 3px;
 }
 
 /* 🔹 Text Inputs */
@@ -131,7 +413,6 @@
     color: #e0f7fa;
 }
 
-/* ensure dropdown options are visible */
 .dropdown-select option {
     background: #1a1f2c;
     color: #e0f7fa;
@@ -139,24 +420,10 @@
     padding: 0.6rem;
 }
 
-/* hover/active option states */
 .dropdown-select option:checked,
 .dropdown-select option:hover {
     background: #00e5ff;
     color: #0a0f1c;
-}
-
-/* neon arrow */
-.dropdown-select::after {
-    content: "▼";
-    position: absolute;
-    right: 1.2rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #00e5ff;
-    font-size: 1rem;
-    pointer-events: none;
-    text-shadow: 0 0 8px #00e5ff;
 }
 
 /* 🔹 Upload Button */
@@ -230,15 +497,12 @@
 .response-card {
     margin-top: 2.4rem;
     margin-bottom: 2rem;
-    /* Added bottom margin for spacing */
     padding: 2rem;
     border-radius: 18px;
     animation: fadeIn 0.7s ease-in-out;
     backdrop-filter: blur(8px);
-    /* Ensure response cards don't interfere with scrolling */
     position: relative;
     z-index: 1;
-    /* Ensure proper text wrapping */
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -274,7 +538,6 @@
     font-size: 1rem;
     line-height: 1.6;
     color: white;
-    /* Ensure content doesn't overflow */
     max-width: 100%;
     overflow: hidden;
 }
@@ -299,7 +562,6 @@
     position: relative;
     font-size: 1rem;
     color: orange;
-    /* Ensure long text wraps properly */
     word-break: break-word;
     hyphens: auto;
 }
@@ -321,35 +583,71 @@
 @media (max-width: 768px) {
     .upload-container {
         width: 98%;
-        /* More width on mobile */
         margin: 1rem auto;
-        /* Reduced margin on mobile */
         padding: 2rem 1.5rem;
-        /* Adjusted padding for mobile */
     }
 
     .title {
         font-size: 2rem;
-        /* Smaller title on mobile */
         margin-bottom: 1.5rem;
+    }
+
+    .drag-drop-zone {
+        padding: 2rem 1rem;
+        min-height: 150px;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+    }
+
+    .drag-drop-text .primary-text {
+        font-size: 1.2rem;
+    }
+
+    .preview-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .preview-image {
+        max-width: 100%;
+        align-self: center;
+    }
+
+    .preview-placeholder {
+        width: 100%;
+        max-width: 300px;
+        align-self: center;
+    }
+
+    .file-info {
+        min-width: auto;
+    }
+
+    .remove-file-btn {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0.6rem 0.8rem;
+    }
+
+    .remove-file-btn::before {
+        font-size: 1.5rem;
     }
 
     .upload-btn {
         font-size: 1.6rem;
-        /* Smaller button text on mobile */
         padding: 0.8rem 2rem;
     }
 
     .response-details h4 {
         font-size: 1.3rem;
-        /* Smaller heading on mobile */
     }
 }
 
 @media (max-width: 480px) {
     .upload-container {
         padding: 1.5rem 1rem;
-        /* Even smaller padding on very small screens */
         margin: 0.5rem auto;
     }
 
@@ -358,10 +656,49 @@
         letter-spacing: 2px;
     }
 
-    .file-label {
-        padding: 1.2rem 2rem;
-        /* Smaller file label on mobile */
-        font-size: 1rem;
+    .drag-drop-zone {
+        padding: 1.5rem 0.8rem;
+        min-height: 120px;
+    }
+
+    .upload-icon {
+        font-size: 2.5rem;
+    }
+
+    .drag-drop-text .primary-text {
+        font-size: 1.1rem;
+    }
+
+    .file-upload-options {
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .file-label-alt {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .preview-image {
+        max-height: 150px;
+    }
+
+    .preview-placeholder {
+        height: 150px;
+    }
+
+    .placeholder-icon {
+        font-size: 2rem;
+    }
+
+    .remove-file-btn {
+        min-width: 35px;
+        min-height: 35px;
+        padding: 0.5rem 0.6rem;
+    }
+
+    .remove-file-btn::before {
+        font-size: 1.2rem;
     }
 
     .upload-btn {
@@ -373,34 +710,36 @@
 
 /* 🔹 Smooth Scrolling Enhancements */
 .upload-container {
-    /* Ensure smooth transitions when content changes */
     transition: height 0.3s ease-in-out;
 }
 
-/* 🔹 Content Expansion Animation */
 .response-card {
-    /* Animate height changes smoothly */
     transition: all 0.3s ease-in-out;
 }
 
-/* 🔹 Prevent Content Jumping */
 .response-details * {
-    /* Ensure all content maintains proper spacing */
     box-sizing: border-box;
 }
 
 /* 🔹 Enhanced Focus States for Accessibility */
-.file-label:focus-within,
+.drag-drop-zone:focus-within,
+.file-label-alt:focus-within,
 .text-input:focus,
 .dropdown-select:focus,
-.upload-btn:focus {
+.upload-btn:focus,
+.remove-file-btn:focus {
     outline: 2px solid #00e5ff;
     outline-offset: 2px;
 }
 
+/* Override focus for remove button to use red theme */
+.remove-file-btn:focus {
+    outline: 3px solid rgba(255, 68, 68, 0.6);
+    outline-offset: 3px;
+}
+
 /* 🔹 Loading State Improvements */
 .upload-container.loading {
-    /* Prevent interaction during upload */
     pointer-events: none;
     opacity: 0.8;
 }

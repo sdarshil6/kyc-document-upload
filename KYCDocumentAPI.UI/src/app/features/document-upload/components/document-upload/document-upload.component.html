@@ -1,28 +1,85 @@
 <div class="upload-container">
   <h2 class="title">KYC Document Classification & Extraction</h2>
-
   <!-- Upload Form -->
   <form [formGroup]="uploadForm" (ngSubmit)="onSubmit()" novalidate>
-    <!-- File Input -->
+    <!-- File Input Section with Drag & Drop -->
     <div class="form-group">
-      <label for="fileInput" class="file-label">
-        <span class="glow-text">Click me to upload file</span>
+      <!-- Drag and Drop Zone -->
+      <div
+        class="drag-drop-zone"
+        [class.drag-over]="isDragOver"
+        [class.has-file]="selectedFile"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+        (click)="fileInput.click()"
+      >
+        <div class="drag-drop-content">
+          <div class="upload-icon">📁</div>
+          <div class="drag-drop-text">
+            <span class="primary-text" *ngIf="!selectedFile"
+              >Drag & Drop your file here</span
+            >
+            <span class="primary-text" *ngIf="selectedFile">{{
+              selectedFile.name
+            }}</span>
+            <span class="secondary-text">or click to browse</span>
+          </div>
+        </div>
         <input
+          #fileInput
           id="fileInput"
           type="file"
           class="file-input"
-          formControlName="file"
           (change)="onFileSelected($event)"
           accept=".png,.jpg,.jpeg,.webp"
         />
-      </label>
+      </div>
       <div
         class="error"
         *ngIf="
-          uploadForm.get('file')?.touched && uploadForm.get('file')?.invalid
+          !selectedFile &&
+          (uploadForm.get('documentType')?.touched || responseMessage)
         "
       >
         ⚠️ Please select a valid file (.png, .jpg, .jpeg, .webp, under 10MB).
+      </div>
+    </div>
+
+    <!-- File Preview Section -->
+    <div class="file-preview-section" *ngIf="selectedFile">
+      <div class="preview-container">
+        <!-- Image preview with fallback -->
+        <img
+          *ngIf="filePreviewUrl"
+          [src]="filePreviewUrl"
+          [alt]="selectedFile.name"
+          class="preview-image"
+          (error)="onImageError($event)"
+        />
+        <!-- Fallback if image fails to load -->
+        <div *ngIf="!filePreviewUrl" class="preview-placeholder">
+          <div class="placeholder-icon">🖼️</div>
+          <span>Preview not available</span>
+        </div>
+
+        <div class="file-info">
+          <div class="file-details">
+            <span class="file-name">{{ selectedFile.name }}</span>
+            <span class="file-size">{{
+              formatFileSize(selectedFile.size)
+            }}</span>
+            <span class="file-type">{{ selectedFile.type }}</span>
+          </div>
+          <button
+            type="button"
+            class="remove-file-btn"
+            (click)="removeSelectedFile()"
+            title="Remove file"
+          >
+            ❌
+          </button>
+        </div>
       </div>
     </div>
 
@@ -49,7 +106,7 @@
     <button
       class="upload-btn"
       type="submit"
-      [disabled]="loading || uploadForm.invalid"
+      [disabled]="loading || !isFormValid()"
     >
       <span *ngIf="!loading">Submit</span>
       <span *ngIf="loading" class="loader"></span>
@@ -63,7 +120,6 @@
   >
     <h3>{{ isSuccess ? "✅ Upload Successful!" : "❌ Upload Failed" }}</h3>
     <p>{{ responseMessage }}</p>
-
     <div *ngIf="isSuccess && uploadResponse" class="response-details">
       <h4>📄 Document Details</h4>
       <ul>
@@ -83,7 +139,6 @@
           {{ uploadResponse.fileSize / (1024 * 1024) | number : "1.2-2" }} MB
         </li>
       </ul>
-
       <div *ngIf="uploadResponse.extractedData">
         <h4>🧾 Extracted Data</h4>
         <ul>
