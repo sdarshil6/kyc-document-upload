@@ -362,3 +362,17 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /KYCDocumentAPI.API/wwwroot/uploads/documents/b24ab495-ab50-47c0-a060-9aa3a3e5bcf3/Aadhaar/Darshil Aadhar Card_20250815_075245_4b8e800c.pdf
+/KYCDocumentAPI.API/Machine Learning Models/Trained
+/KYCDocumentAPI.API/wwwroot/uploads/documents/b24ab495-ab50-47c0-a060-9aa3a3e5bcf3
+/KYCDocumentAPI.API/TrainingData/Images/PAN/Aditi PAN.png
+/KYCDocumentAPI.API/TrainingData/Images/PAN/Gunjan PAN.png
+/KYCDocumentAPI.API/TrainingData/Images/PAN/Darshil Shah PAN Card.png
+/KYCDocumentAPI.API/TrainingData/Images/PAN/Darshil Shah PAN Card.jpg
+/KYCDocumentAPI.API/TrainingData/Images/PAN/Bhavesh PAN.png
+*.png
+/KYCDocumentAPI.API/TrainingData/Images/Aadhaar/Aditi Aadhar Card.jpg
+/KYCDocumentAPI.API/TrainingData/Images/Aadhaar/Aditi Aadhar Card.png
+/KYCDocumentAPI.API/TrainingData/Images/Aadhaar/Aditi Aadhar Card.webp
+/KYCDocumentAPI.API/TrainingData/Images/Aadhaar/Darshil Aadhar Card.jpg
+/KYCDocumentAPI.API/TrainingData/Images/Aadhaar/Darshil Aadhar Card.png
+/KYCDocumentAPI.API/TrainingData/Images/Aadhaar/Darshil Aadhar Card.webp
