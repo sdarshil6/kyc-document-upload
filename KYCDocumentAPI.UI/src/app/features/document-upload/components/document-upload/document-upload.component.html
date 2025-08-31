@@ -164,10 +164,16 @@
             {{ uploadResponse.extractedData.passportNumber }}
           </li>
           <li *ngIf="uploadResponse.extractedData.address">
-            <strong>Address:</strong>
-            {{ uploadResponse.extractedData.address }},
-            {{ uploadResponse.extractedData.city }},
-            {{ uploadResponse.extractedData.state }} -
+            <strong>Address:</strong> {{ uploadResponse.extractedData.address }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.city">
+            <strong>City:</strong> {{ uploadResponse.extractedData.city }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.state">
+            <strong>State:</strong> {{ uploadResponse.extractedData.state }}
+          </li>
+          <li *ngIf="uploadResponse.extractedData.pinCode">
+            <strong>Pin Code:</strong>
             {{ uploadResponse.extractedData.pinCode }}
           </li>
           <li>
