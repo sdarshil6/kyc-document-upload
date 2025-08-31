@@ -563,3 +563,116 @@ app-document-upload {
     margin: 0 auto;
     /* Center horizontally */
 }
+
+/* 🚀 Orbital Border Celestial Objects */
+.border-orbit {
+    position: fixed;
+    border-radius: 50%;
+    z-index: 2;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+/* Top Edge Orbiters */
+.orbit-top {
+    width: 120px;
+    height: 120px;
+    top: -60px;
+    /* partially off-screen */
+    left: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, #ff8c00, #ffa726);
+    box-shadow: 0 0 50px #ffa726, 0 0 100px rgba(255, 140, 0, 0.3);
+    animation: orbit-top 25s linear infinite, pulse 5s ease-in-out infinite;
+}
+
+/* Bottom Edge Orbiters */
+.orbit-bottom {
+    width: 100px;
+    height: 100px;
+    bottom: -50px;
+    left: 40%;
+    background: radial-gradient(circle, #8a2be2, #6a4c93);
+    box-shadow: 0 0 40px #6a4c93, 0 0 80px rgba(138, 43, 226, 0.3);
+    animation: orbit-bottom 30s linear infinite reverse, pulse 4s ease-in-out infinite;
+}
+
+/* Left Edge Orbiters */
+.orbit-left {
+    width: 90px;
+    height: 90px;
+    left: -45px;
+    top: 30%;
+    background: radial-gradient(circle, #00d4ff, #0066aa);
+    box-shadow: 0 0 35px #00d4ff, 0 0 70px rgba(0, 212, 255, 0.3);
+    animation: orbit-left 28s linear infinite, pulse 6s ease-in-out infinite;
+}
+
+/* Right Edge Orbiters */
+.orbit-right {
+    width: 110px;
+    height: 110px;
+    right: -55px;
+    top: 60%;
+    background: radial-gradient(circle, #ff6b9d, #e91e63);
+    box-shadow: 0 0 45px #ff6b9d, 0 0 90px rgba(255, 107, 157, 0.3);
+    animation: orbit-right 32s linear infinite reverse, pulse 5s ease-in-out infinite;
+}
+
+/* Semi-circular orbit animations */
+@keyframes orbit-top {
+    0% {
+        transform: translateX(-50%) rotate(0deg) translateY(0px) rotate(0deg);
+    }
+
+    100% {
+        transform: translateX(-50%) rotate(360deg) translateY(0px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-bottom {
+    0% {
+        transform: translateX(-50%) rotate(0deg) translateY(0px) rotate(0deg);
+    }
+
+    100% {
+        transform: translateX(-50%) rotate(360deg) translateY(0px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-left {
+    0% {
+        transform: translateY(-50%) rotate(0deg) translateX(0px) rotate(0deg);
+    }
+
+    100% {
+        transform: translateY(-50%) rotate(360deg) translateX(0px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-right {
+    0% {
+        transform: translateY(-50%) rotate(0deg) translateX(0px) rotate(0deg);
+    }
+
+    100% {
+        transform: translateY(-50%) rotate(360deg) translateX(0px) rotate(-360deg);
+    }
+}
+
+/* Pulsating glow */
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.8;
+        box-shadow: 0 0 50px currentColor, 0 0 100px rgba(255, 255, 255, 0.2);
+    }
+
+    50% {
+        transform: scale(1.15);
+        opacity: 1;
+        box-shadow: 0 0 80px currentColor, 0 0 150px rgba(255, 255, 255, 0.3);
+    }
+}
