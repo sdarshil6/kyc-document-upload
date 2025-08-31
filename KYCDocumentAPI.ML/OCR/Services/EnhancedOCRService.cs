@@ -310,9 +310,8 @@ namespace KYCDocumentAPI.ML.OCR.Services
             return new OCRConfiguration
             {
                 TesseractPath = _configuration["OCRSettings:TesseractPath"] ?? "tesseract",
-                TesseractDataPath = _configuration["OCRSettings:TesseractDataPath"] ?? "",
-                PythonPath = _configuration["OCRSettings:PythonPath"] ?? "python",
-                DefaultLanguages = _configuration.GetSection("OCRSettings:DefaultLanguages").Get<List<string>>() ?? new List<string> { "en", "hi" },
+                TesseractDataPath = _configuration["OCRSettings:TesseractDataPath"] ?? "",               
+                DefaultLanguages = _configuration.GetSection("OCRSettings:DefaultLanguages").Get<List<string>>() ?? new List<string> { "eng", "hin", "guj" },
                 ProcessingTimeout = _configuration.GetValue<int>("OCRSettings:ProcessingTimeout", 30000),
                 MaxRetries = _configuration.GetValue<int>("OCRSettings:MaxRetries", 3),
                 PreprocessImages = _configuration.GetValue<bool>("OCRSettings:PreprocessImages", true),

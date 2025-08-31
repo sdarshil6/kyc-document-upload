@@ -42,8 +42,7 @@ namespace KYCDocumentAPI.API.Controllers
                 }
                 
                 var options = new OCRProcessingOptions
-                {
-                    Languages = new List<string> { "eng", "hin" },
+                {                    
                     PreferredEngine = OCREngine.Tesseract,                    
                     PreprocessImage = true,
                     AnalyzeQuality = true,

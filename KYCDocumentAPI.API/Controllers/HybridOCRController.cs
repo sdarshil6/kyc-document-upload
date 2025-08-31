@@ -44,7 +44,7 @@ namespace KYCDocumentAPI.API.Controllers
                 // Smart processing with automatic engine selection
                 var options = new OCRProcessingOptions
                 {
-                    Languages = new List<string> { "en", "hi" },
+                    Languages = new List<string> { "eng", "hin", "guj" },
                     PreferredEngine = OCREngine.EasyOCR, // Start with EasyOCR for better quality handling
                     EnableFallback = true,
                     PreprocessImage = true,
@@ -147,7 +147,7 @@ namespace KYCDocumentAPI.API.Controllers
 
                 var options = new OCRProcessingOptions
                 {
-                    Languages = new List<string> { "eng", "hin" },
+                    Languages = new List<string> { "eng", "hin", "guj" },
                     PreprocessImage = true,
                     ExtractWordDetails = true,
                     MinimumConfidence = 0.5f,
@@ -354,7 +354,7 @@ namespace KYCDocumentAPI.API.Controllers
                     // Process batch
                     var options = new OCRProcessingOptions
                     {
-                        Languages = new List<string> { "en", "hi" },
+                        Languages = new List<string> { "eng", "hin", "guj"},
                         PreferredEngine = OCREngine.EasyOCR,
                         EnableFallback = true,
                         PreprocessImage = true,

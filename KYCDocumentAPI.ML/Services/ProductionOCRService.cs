@@ -39,7 +39,7 @@ namespace KYCDocumentAPI.ML.Services
             {
                 var options = new OCRProcessingOptions
                 {
-                    Languages = new List<string> { "eng", "hin" },
+                    Languages = new List<string> { "eng", "hin", "guj" },
                     PreferredEngine = OCREngine.Tesseract,
                     EnableFallback = false,
                     PreprocessImage = true,
@@ -70,7 +70,7 @@ namespace KYCDocumentAPI.ML.Services
             {                
                 var options = new OCRProcessingOptions
                 {
-                    Languages = new List<string> { "en", "hi" },
+                    Languages = new List<string> { "eng", "hin", "guj" },
                     PreferredEngine = OCREngine.Tesseract,
                     EnableFallback = true,
                     PreprocessImage = true,

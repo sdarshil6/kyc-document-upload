@@ -180,7 +180,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
             {
                 Engine = EngineType,
                 Version = "Unknown",
-                SupportedLanguages = new List<string> { "en", "hi" },
+                SupportedLanguages = new List<string> { "eng", "hin", "guj" },
                 SupportedFormats = new List<string> { ".jpg", ".jpeg", ".png", ".bmp", ".tiff" },
                 SupportsWordDetails = true,
                 SupportsConfidenceScores = true,

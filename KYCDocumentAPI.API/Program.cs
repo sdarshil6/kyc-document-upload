@@ -52,9 +52,8 @@ builder.Services.AddSingleton(serviceProvider =>
     return new KYCDocumentAPI.ML.OCR.Models.OCRConfiguration
     {
         TesseractPath = configuration["OCRSettings:TesseractPath"] ?? "tesseract",
-        TesseractDataPath = configuration["OCRSettings:TesseractDataPath"] ?? "",
-        PythonPath = configuration["OCRSettings:PythonPath"] ?? "python",
-        DefaultLanguages = configuration.GetSection("OCRSettings:DefaultLanguages").Get<List<string>>() ?? new List<string> { "en", "hi" },
+        TesseractDataPath = configuration["OCRSettings:TesseractDataPath"] ?? "",     
+        DefaultLanguages = configuration.GetSection("OCRSettings:DefaultLanguages").Get<List<string>>() ?? new List<string> { "eng", "hin", "guj" },
         ProcessingTimeout = configuration.GetValue<int>("OCRSettings:ProcessingTimeout", 30000),
         MaxRetries = configuration.GetValue<int>("OCRSettings:MaxRetries", 3),
         PreprocessImages = configuration.GetValue<bool>("OCRSettings:PreprocessImages", true),

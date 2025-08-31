@@ -8,7 +8,7 @@ namespace KYCDocumentAPI.ML.OCR.Models
         {
             ["Aadhaar"] = new OCRProcessingOptions
             {
-                Languages = new List<string> { "en", "hi" },
+                Languages = new List<string> { "eng", "hin", "guj" },
                 PreferredEngine = OCREngine.EasyOCR,
                 EnableFallback = true,
                 PreprocessImage = true,
@@ -16,7 +16,7 @@ namespace KYCDocumentAPI.ML.OCR.Models
             },
             ["PAN"] = new OCRProcessingOptions
             {
-                Languages = new List<string> { "en" },
+                Languages = new List<string> { "eng", "hin", "guj" },
                 PreferredEngine = OCREngine.Tesseract,
                 EnableFallback = true,
                 PreprocessImage = true,

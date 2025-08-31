@@ -131,7 +131,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
                 Engine = EngineType,
                 Version = await GetTesseractVersionAsync(),
                 SupportedLanguages = await GetSupportedLanguagesAsync(),
-                SupportedFormats = new List<string> { ".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".pdf" },
+                SupportedFormats = new List<string> { ".jpg", ".jpeg", ".png" },
                 SupportsWordDetails = true,
                 SupportsConfidenceScores = true,
                 SupportsMultipleLanguages = true,
@@ -251,7 +251,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
         {
             engine.SetVariable("preserve_interword_spaces", "1");
             engine.SetVariable("user_defined_dpi", "300");
-            if (options.Languages.Contains("hi"))
+            if (options.Languages.Contains("hin"))
             {
                 engine.SetVariable("textord_really_old_xheight", "1");
                 engine.SetVariable("textord_min_xheight", "10");
@@ -373,7 +373,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
             await CreateTestImageAsync(testImagePath);
             var result = await PerformTesseractOCRAsync(testImagePath, new OCRProcessingOptions
             {
-                Languages = new List<string> { "eng" },
+                Languages = new List<string> { "eng", "guj", "hin" },
                 TimeoutSeconds = 10,
                 PreprocessImage = false
             });

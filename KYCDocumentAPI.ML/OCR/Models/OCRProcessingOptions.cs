@@ -7,7 +7,7 @@ namespace KYCDocumentAPI.ML.OCR.Models
     /// </summary>
     public class OCRProcessingOptions
     {
-        public List<string> Languages { get; set; } = new() { "en", "hi" };
+        public List<string> Languages { get; set; } = new() { "eng", "hin", "guj" };
         public OCREngine PreferredEngine { get; set; } = OCREngine.EasyOCR;
         public bool EnableFallback { get; set; } = true;
         public bool PreprocessImage { get; set; } = true;
