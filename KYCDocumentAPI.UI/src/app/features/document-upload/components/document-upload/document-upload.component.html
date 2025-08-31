@@ -69,13 +69,19 @@
       <ul>
         <li><strong>ID:</strong> {{ uploadResponse.documentId }}</li>
         <li><strong>File Name:</strong> {{ uploadResponse.fileName }}</li>
-        <li><strong>Type:</strong> {{ uploadResponse.inputDocumentType }}</li>
         <li>
-          <strong>Classified Type:</strong>
+          <strong>Input Document Type:</strong>
+          {{ uploadResponse.inputDocumentType }}
+        </li>
+        <li>
+          <strong>Classified Document Type:</strong>
           {{ uploadResponse.classifiedDocumentType }}
         </li>
         <li><strong>Status:</strong> {{ uploadResponse.status }}</li>
-        <li><strong>Size:</strong> {{ uploadResponse.fileSize }} bytes</li>
+        <li>
+          <strong>Size:</strong>
+          {{ uploadResponse.fileSize / (1024 * 1024) | number : "1.2-2" }} MB
+        </li>
       </ul>
 
       <div *ngIf="uploadResponse.extractedData">
