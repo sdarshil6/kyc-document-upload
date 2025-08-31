@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace KYCDocumentAPI.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250830084653_InitialCreate")]
+    [Migration("20250831122853_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
