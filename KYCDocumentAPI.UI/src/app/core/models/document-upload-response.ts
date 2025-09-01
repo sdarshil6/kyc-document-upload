@@ -6,7 +6,6 @@ export interface DocumentUploadResponse {
   contentType: string;
   fileSize: number;
   status: string;
-  inputDocumentType: string;
   classifiedDocumentType: string;
   extractedData?: ExtractedDocumentData;
   message: string;

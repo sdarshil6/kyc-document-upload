@@ -8,8 +8,7 @@ namespace KYCDocumentAPI.API.Models.Responses
         public string FileName { get; set; } = string.Empty;        
         public string ContentType { get; set; } = string.Empty;
         public long FileSize { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public string InputDocumentType { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;       
         public string ClassifiedDocumentType { get; set; } = string.Empty;
 
         public ExtractedDocumentData? ExtractedData { get; set; }

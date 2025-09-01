@@ -81,7 +81,6 @@ namespace KYCDocumentAPI.API.Controllers
                     ContentType = document.ContentType ?? string.Empty,
                     FileSize = document.FileSize,
                     Status = newlyProcessedDocument.Document.Status.ToString(),
-                    InputDocumentType = document.DocumentType.GetDescription(),
                     ClassifiedDocumentType = newlyProcessedDocument.Document.DocumentType.GetDescription(),
                     ExtractedData = newlyProcessedDocument.DocumentData != null ? new ExtractedDocumentData
                     {
