@@ -333,10 +333,10 @@ namespace KYCDocumentAPI.Infrastructure.Services
             try
             {
                 var dobPatterns = new[]
-                    {
-                @"\b(?:dob|date of birth)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b",
-                @"\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b"
-            };
+                {
+                    @"\b(?:dob|date of birth)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b",
+                    @"\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\b"
+                };
 
                 foreach (var pattern in dobPatterns)
                 {
@@ -344,10 +344,9 @@ namespace KYCDocumentAPI.Infrastructure.Services
                     if (match.Success)
                     {
                         var dateStr = match.Groups[1].Value;
-                        if (DateTime.TryParseExact(dateStr, new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" },
-                            null, System.Globalization.DateTimeStyles.None, out DateTime date))
-                        {
-                            return date;
+                        if (DateTime.TryParseExact(dateStr, new[] { "dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy" }, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime date))
+                        {                            
+                            return DateTime.SpecifyKind(date, DateTimeKind.Utc);
                         }
                     }
                 }
