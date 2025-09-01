@@ -94,17 +94,14 @@ export class DocumentUploadComponent implements OnDestroy {
     }
 
     const file = input.files[0];
-    console.log('File selected:', file.name, file.type, file.size);
+
     this.processSelectedFile(file);
   }
 
   // Process selected file with validation and preview
   private processSelectedFile(file: File): void {
-    console.log('Processing file:', file.name);
-
     // Validate file type
     if (!this.ALLOWED_TYPES.includes(file.type)) {
-      console.log('Invalid file type:', file.type);
       this.clearFilePreview();
       this.resetFileInput();
       return;
@@ -112,7 +109,6 @@ export class DocumentUploadComponent implements OnDestroy {
 
     // Validate file size
     if (file.size > this.MAX_FILE_SIZE) {
-      console.log('File too large:', file.size);
       this.clearFilePreview();
       this.resetFileInput();
       return;
@@ -124,11 +120,6 @@ export class DocumentUploadComponent implements OnDestroy {
 
     // Force change detection to update the view
     this.cdr.detectChanges();
-
-    console.log(
-      'File processed successfully. Preview URL:',
-      this.filePreviewUrl
-    );
   }
 
   // Create file preview using blob URL
@@ -142,18 +133,15 @@ export class DocumentUploadComponent implements OnDestroy {
     try {
       // Ensure we have a valid file
       if (!file) {
-        console.error('No file provided for preview');
         return;
       }
 
       // Create new preview URL
       this.filePreviewUrl = URL.createObjectURL(file);
-      console.log('Preview URL created successfully:', this.filePreviewUrl);
 
       // Force change detection
       this.cdr.detectChanges();
     } catch (error) {
-      console.error('Error creating file preview:', error);
       this.filePreviewUrl = null;
     }
   }
@@ -193,10 +181,7 @@ export class DocumentUploadComponent implements OnDestroy {
   }
 
   // Handle image load errors
-  onImageError(event: any): void {
-    console.error('Image failed to load:', event);
-    // Could implement fallback logic here
-  }
+  onImageError(event: any): void {}
 
   // Check if entire form (including file) is valid
   isFormValid(): boolean {
@@ -207,14 +192,13 @@ export class DocumentUploadComponent implements OnDestroy {
   onSubmit(): void {
     // Check if file is selected
     if (!this.selectedFile) {
-      console.error('No file selected');
       return;
     }
 
     // Check if form is valid
     if (this.uploadForm.invalid) {
       this.uploadForm.markAllAsTouched();
-      console.error('Form is invalid');
+
       return;
     }
 
@@ -228,7 +212,7 @@ export class DocumentUploadComponent implements OnDestroy {
 
     if (isNaN(documentTypeValue)) {
       this.loading = false;
-      console.error('Invalid document type value');
+
       return;
     }
 
@@ -238,13 +222,6 @@ export class DocumentUploadComponent implements OnDestroy {
       documentType: documentTypeValue,
     };
 
-    console.log('Submitting upload request:', {
-      fileName: this.selectedFile.name,
-      fileSize: this.selectedFile.size,
-      fileType: this.selectedFile.type,
-      documentType: documentTypeValue,
-    });
-
     this.uploadService.uploadDocument(documentUploadRequest).subscribe({
       next: (res) => {
         this.loading = false;
@@ -252,10 +229,6 @@ export class DocumentUploadComponent implements OnDestroy {
         this.responseMessage =
           res.message || 'Your document has been uploaded successfully!';
         this.uploadResponse = res.data;
-        console.log('Success Response:', this.uploadResponse);
-
-        // Optionally clear the form after successful upload
-        // this.resetForm();
       },
       error: (err) => {
         this.loading = false;
@@ -264,7 +237,6 @@ export class DocumentUploadComponent implements OnDestroy {
           err?.error?.message ||
           'Something went wrong. Please try again later.';
         this.uploadResponse = null;
-        console.error('Upload failed:', err);
       },
     });
   }
@@ -278,6 +250,5 @@ export class DocumentUploadComponent implements OnDestroy {
     this.uploadResponse = null;
     this.isSuccess = false;
     this.loading = false;
-    console.log('Form reset completed');
   }
 }

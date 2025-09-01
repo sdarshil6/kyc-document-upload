@@ -16,7 +16,7 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", "KYC-Document-API")
     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-    .WriteTo.File("logs/kyc-api-.txt",
+    .WriteTo.File(Path.Combine(AppContext.BaseDirectory, "wwwroot", "logs", "kyc-api-.txt"),
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")

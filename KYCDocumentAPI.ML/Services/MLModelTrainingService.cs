@@ -1,4 +1,5 @@
 ﻿using KYCDocumentAPI.ML.Models;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.ML;
 using Microsoft.ML.Data;
@@ -20,6 +21,7 @@ namespace KYCDocumentAPI.ML.Services
 
         private MLConfig _currentConfig;
         private TrainingMetrics? _lastTrainingMetrics;
+        private readonly IWebHostEnvironment _env;
 
         public bool IsModelLoaded
         {
@@ -33,12 +35,13 @@ namespace KYCDocumentAPI.ML.Services
 
         public MLConfig CurrentConfig => _currentConfig;
 
-        public MLModelTrainingService(ILogger<MLModelTrainingService> logger, ITrainingDataService trainingDataService)
+        public MLModelTrainingService(ILogger<MLModelTrainingService> logger, ITrainingDataService trainingDataService, IWebHostEnvironment env)
         {
             _mlContext = new MLContext(seed: 1);
             _logger = logger;
             _trainingDataService = trainingDataService;
             _currentConfig = MLConfig.GetDevelopmentConfig();
+            _env = env;
         }
 
         public async Task<TrainingMetrics> TrainModelAsync(bool isLimitedToFewDocumentTypes = false)
@@ -187,11 +190,12 @@ namespace KYCDocumentAPI.ML.Services
             }
         }
 
-        public Task<bool> LoadModelAsync(string? modelPath = null)
+        public Task<bool> LoadModelAsync()
         {
+            var pathToLoad = string.Empty;
             try
             {
-                var pathToLoad = modelPath ?? _currentConfig.ModelOutputPath;
+                pathToLoad = Path.Combine(_env.ContentRootPath, "Machine Learning Models", "Trained", "DocumentClassifier.zip");
 
                 if (!File.Exists(pathToLoad))
                 {
@@ -216,7 +220,7 @@ namespace KYCDocumentAPI.ML.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading model from: {ModelPath}", modelPath);
+                _logger.LogError(ex, "Error loading model from: {ModelPath}", pathToLoad);
                 return Task.FromResult(false);
             }
         }

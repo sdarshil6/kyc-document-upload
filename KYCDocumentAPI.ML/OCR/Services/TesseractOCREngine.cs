@@ -1,11 +1,12 @@
 ﻿using KYCDocumentAPI.ML.OCR.Enums;
 using KYCDocumentAPI.ML.OCR.Models;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Processing;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Tesseract;
@@ -20,10 +21,11 @@ namespace KYCDocumentAPI.ML.OCR.Services
         private readonly string _tesseractDataPath;
         private bool _isInitialized;
         private OCREngineStatus _engineStatus;
+        private readonly IWebHostEnvironment _env;
 
         public OCREngine EngineType => OCREngine.Tesseract;
 
-        public TesseractOCREngine(ILogger<TesseractOCREngine> logger, IConfiguration configuration)
+        public TesseractOCREngine(ILogger<TesseractOCREngine> logger, IConfiguration configuration, IWebHostEnvironment env)
         {
             _logger = logger;
             _configuration = configuration;
@@ -38,6 +40,8 @@ namespace KYCDocumentAPI.ML.OCR.Services
                 StatusMessage = "Not initialized",
                 LastHealthCheck = DateTime.UtcNow
             };
+
+            _env = env;
         }
 
         public async Task<EngineResult> ExtractTextAsync(string imagePath, OCRProcessingOptions options)
@@ -46,8 +50,8 @@ namespace KYCDocumentAPI.ML.OCR.Services
             string processedImagePath = string.Empty;
             try
             {
-                if (!_isInitialized)                
-                    await InitializeAsync();
+                //if (!_isInitialized)                
+                //    await InitializeAsync();
                 
                 _logger.LogInformation("Starting Tesseract OCR processing for {ImagePath}", imagePath);
 
@@ -182,8 +186,8 @@ namespace KYCDocumentAPI.ML.OCR.Services
             {
                 _logger.LogInformation("Initializing Tesseract OCR engine");
 
-                var versionResult = await RunTesseractCommandAsync("--version");
-                if (!versionResult.Success) throw new InvalidOperationException("Tesseract executable not found");
+                //var versionResult = await RunTesseractCommandAsync("--version");
+                //if (!versionResult.Success) throw new InvalidOperationException("Tesseract executable not found");
 
                 var languageResult = await RunTesseractCommandAsync("--list-langs");
                 if (!languageResult.Success) throw new InvalidOperationException("Failed to retrieve Tesseract languages");
@@ -219,7 +223,7 @@ namespace KYCDocumentAPI.ML.OCR.Services
         {
             try
             {
-                using var engine = new TesseractEngine(_tesseractDataPath, string.Join("+", options.Languages), EngineMode.Default);
+                using var engine = new TesseractEngine(Path.Combine(_env.ContentRootPath, _tesseractDataPath), string.Join("+", options.Languages), EngineMode.Default);
 
                 ConfigureTesseractEngine(engine, options);
 

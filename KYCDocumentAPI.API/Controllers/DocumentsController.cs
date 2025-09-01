@@ -76,12 +76,12 @@ namespace KYCDocumentAPI.API.Controllers
 
                 var response = new DocumentUploadResponse
                 {
-                    DocumentId = newlyProcessedDocument.Document!.Id,
-                    FileName = newlyProcessedDocument.Document.FileName,                    
-                    ContentType = newlyProcessedDocument.Document.ContentType ?? string.Empty,
-                    FileSize = newlyProcessedDocument.Document.FileSize,
+                    DocumentId = document.Id,
+                    FileName = document.FileName,                    
+                    ContentType = document.ContentType ?? string.Empty,
+                    FileSize = document.FileSize,
                     Status = newlyProcessedDocument.Document.Status.ToString(),
-                    InputDocumentType = newlyProcessedDocument.Document.DocumentType.GetDescription(),
+                    InputDocumentType = document.DocumentType.GetDescription(),
                     ClassifiedDocumentType = newlyProcessedDocument.Document.DocumentType.GetDescription(),
                     ExtractedData = newlyProcessedDocument.DocumentData != null ? new ExtractedDocumentData
                     {
@@ -105,7 +105,7 @@ namespace KYCDocumentAPI.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error uploading document");
-                return StatusCode(500, ApiResponse<DocumentUploadResponse>.ErrorResponse("Internal server error"));
+                return StatusCode(500, ApiResponse<DocumentUploadResponse>.ErrorResponse(ex.Message));
             }
         }
 

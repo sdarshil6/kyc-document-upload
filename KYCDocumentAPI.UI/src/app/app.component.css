@@ -1,8 +1,4 @@
-/* Import Google Fonts for better typography */
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap');
-
-/* CSS Custom Properties for better maintainability */
-:root {
+/*:root {
     --primary-bg: #0a0a23;
     --secondary-bg: #000015;
     --accent-purple: #6a4c93;
@@ -19,14 +15,14 @@
     --animation-duration-slow: 15s;
 }
 
-/* Performance optimizations */
+
 * {
     box-sizing: border-box;
 }
+*/
 
-/* Custom Space-themed Scrollbar */
 /* Webkit browsers (Chrome, Safari, Edge) */
-::-webkit-scrollbar {
+/* ::-webkit-scrollbar {
     width: 12px;
     height: 12px;
 }
@@ -72,16 +68,16 @@
 ::-webkit-scrollbar-corner {
     background: #0a0a23;
     border-radius: 6px;
-}
+} */
 
-/* Firefox scrollbar */
-html {
+
+/* html {
     scrollbar-width: thin;
     scrollbar-color: #6a4c93 #0a0a23;
-}
+} */
 
-/* Animated scrollbar glow effect */
-@keyframes scrollbar-glow {
+
+/* @keyframes scrollbar-glow {
 
     0%,
     100% {
@@ -98,66 +94,71 @@ html {
             0 0 36px rgba(255, 107, 157, 0.3),
             inset 0 2px 4px rgba(255, 255, 255, 0.2);
     }
-}
+} */
 
-/* Main space background container - FIXED POSITIONING */
-.space-background {
+
+/* .space-background {
     position: relative;
     width: 100vw;
-    min-height: 100vh;
-    /* Changed from height to min-height */
-    /* Enable scrolling if content overflows */
-    overflow-y: auto;
-    overflow-x: hidden;
-    /* Fallback solid dark background first */
-    background-color: #0a0a23;
-    /* Then add the complex gradients on top */
-    background-image:
-        radial-gradient(ellipse at 20% 50%, rgba(106, 76, 147, 0.3) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.2) 0%, transparent 50%),
-        radial-gradient(ellipse at 40% 80%, rgba(255, 107, 157, 0.25) 0%, transparent 50%),
-        linear-gradient(135deg, #0a0a23 0%, #000015 100%);
-    /* Fixed positioning for content */
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    /* Changed from center to flex-start */
-    align-items: center;
-    padding: 2rem 0;
-    /* Added padding for breathing space */
-    color: #ffffff;
-    font-family: 'Orbitron', 'Exo 2', sans-serif;
-    font-weight: 400;
-    perspective: 1000px;
-    transform-style: preserve-3d;
-    /* Custom scrollbar for Firefox */
-    scrollbar-width: thin;
-    scrollbar-color: rgba(106, 76, 147, 0.8) rgba(10, 10, 35, 0.9);
-}
+    min-height: 100vh; */
 
-/* Enhanced starfield background */
-.space-background::before {
+
+/* overflow-y: auto;
+overflow-x: hidden; */
+
+/* background-color: #0a0a23; */
+
+/* background-image: radial-gradient(ellipse at 20% 50%, rgba(106, 76, 147, 0.3) 0%, transparent 50%),
+radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.2) 0%, transparent 50%),
+radial-gradient(ellipse at 40% 80%, rgba(255, 107, 157, 0.25) 0%, transparent 50%),
+linear-gradient(135deg, #0a0a23 0%, #000015 100%); */
+
+/* display: flex;
+flex-direction: column;
+justify-content: flex-start; */
+
+/* align-items: center;
+padding: 2rem 0; */
+
+/* color: #ffffff;
+font-family: 'Orbitron',
+'Exo 2',
+sans-serif;
+font-weight: 400;
+perspective: 1000px;
+transform-style: preserve-3d; */
+
+/* scrollbar-width: thin;
+scrollbar-color: rgba(106, 76, 147, 0.8) rgba(10, 10, 35, 0.9);
+} */
+
+
+
+
+/* .space-background::before {
     content: '';
     position: fixed;
-    /* Changed from absolute to fixed */
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background-image:
-        radial-gradient(circle at 25% 25%, #ffffff 1px, transparent 2px),
-        radial-gradient(circle at 75% 75%, #ffffff 0.5px, transparent 1px),
-        radial-gradient(circle at 50% 10%, #00d4ff 0.5px, transparent 1px),
-        radial-gradient(circle at 20% 80%, #ff6b9d 0.5px, transparent 1px);
-    background-size: 150px 150px, 75px 75px, 200px 200px, 180px 180px;
-    animation: starfield-drift 15s linear infinite;
-    opacity: 0.8;
-    z-index: 1;
-    will-change: transform;
-    backface-visibility: hidden;
-}
 
-@keyframes starfield-drift {
+/* top: -50%;
+left: -50%;
+width: 200%;
+height: 200%;
+background-image: radial-gradient(circle at 25% 25%, #ffffff 1px, transparent 2px),
+radial-gradient(circle at 75% 75%, #ffffff 0.5px, transparent 1px),
+radial-gradient(circle at 50% 10%, #00d4ff 0.5px, transparent 1px),
+radial-gradient(circle at 20% 80%, #ff6b9d 0.5px, transparent 1px);
+background-size: 150px 150px,
+75px 75px,
+200px 200px,
+180px 180px;
+animation: starfield-drift 15s linear infinite;
+opacity: 0.8;
+z-index: 1;
+will-change: transform;
+backface-visibility: hidden;
+} */
+
+/* @keyframes starfield-drift {
     0% {
         transform: translate3d(0, 0, 0) rotate(0deg);
         opacity: 0.6;
@@ -171,22 +172,23 @@ html {
         transform: translate3d(-50px, -50px, 0) rotate(1deg);
         opacity: 0.6;
     }
-}
+} */
 
-/* Enhanced shooting stars system */
-.shooting-stars {
+
+
+/* .shooting-stars {
     position: fixed;
-    /* Changed from absolute to fixed */
+    
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
     z-index: 2;
-}
+} */
 
-/* Multiple shooting stars with varied timing */
-.shooting-stars::before,
+
+/* .shooting-stars::before,
 .shooting-stars::after {
     content: '';
     position: absolute;
@@ -230,10 +232,10 @@ html {
         var(--glow-intensity) var(--accent-orange),
         0 0 40px var(--star-color),
         0 0 60px var(--accent-purple);
-}
+} */
 
-/* Additional shooting stars */
-.shooting-stars {
+
+/* .shooting-stars {
     --meteor-1: 0.8s;
     --meteor-2: 1.5s;
     --meteor-3: 2.2s;
@@ -267,12 +269,12 @@ html {
         transform: translateX(-40vw) translateY(40vh) rotate(45deg) scale(0);
         opacity: 0;
     }
-}
+} */
 
 /* Enhanced planetary system */
-.planet {
+/* .planet {
     position: fixed;
-    /* Changed from absolute to fixed */
+
     border-radius: 50%;
     background: var(--accent-orange);
     box-shadow:
@@ -285,7 +287,7 @@ html {
     backface-visibility: hidden;
 }
 
-/* Planet variants with different materials */
+
 .orbit1 {
     width: 60px;
     height: 60px;
@@ -335,10 +337,10 @@ html {
         planet-rotation 8s linear infinite,
         planet-pulse 5s ease-in-out infinite;
     filter: hue-rotate(90deg);
-}
+} */
 
-/* Advanced orbital mechanics */
-@keyframes planetary-orbit-1 {
+
+/* @keyframes planetary-orbit-1 {
     0% {
         transform:
             rotate(0deg) translateX(180px) rotate(0deg) translateZ(20px);
@@ -372,10 +374,10 @@ html {
         transform:
             rotate(360deg) translateX(220px) rotate(-360deg) translateZ(0px);
     }
-}
+} */
 
-/* Planet rotation and pulsing effects */
-@keyframes planet-rotation {
+
+/* @keyframes planet-rotation {
     0% {
         filter: hue-rotate(0deg) brightness(1);
     }
@@ -409,11 +411,10 @@ html {
     }
 }
 
-/* Cosmic dust particles */
 .space-background::after {
     content: '';
     position: fixed;
-    /* Changed from absolute to fixed */
+
     top: 0;
     left: 0;
     width: 100%;
@@ -440,11 +441,11 @@ html {
     }
 }
 
-/* Responsive design optimizations */
+
 @media (max-width: 768px) {
     .space-background {
         padding: 1rem 0;
-        /* Reduced padding on mobile */
+
     }
 
     .orbit1 {
@@ -514,7 +515,7 @@ html {
     }
 }
 
-/* Reduce motion for accessibility */
+
 @media (prefers-reduced-motion: reduce) {
 
     .shooting-stars::before,
@@ -542,7 +543,7 @@ html {
     }
 }
 
-/* Performance optimizations */
+
 .planet,
 .shooting-stars::before,
 .shooting-stars::after,
@@ -553,18 +554,18 @@ html {
     will-change: transform;
 }
 
-/* Document upload component positioning - FIXED */
+
 app-document-upload {
     position: relative;
     z-index: 10;
     width: 100%;
     max-width: 1200px;
-    /* Match the upload container max-width */
+
     margin: 0 auto;
-    /* Center horizontally */
+
 }
 
-/* 🚀 Orbital Border Celestial Objects */
+
 .border-orbit {
     position: fixed;
     border-radius: 50%;
@@ -573,12 +574,12 @@ app-document-upload {
     will-change: transform, opacity;
 }
 
-/* Top Edge Orbiters */
+
 .orbit-top {
     width: 120px;
     height: 120px;
     top: -60px;
-    /* partially off-screen */
+
     left: 50%;
     transform: translateX(-50%);
     background: radial-gradient(circle, #ff8c00, #ffa726);
@@ -586,7 +587,7 @@ app-document-upload {
     animation: orbit-top 25s linear infinite, pulse 5s ease-in-out infinite;
 }
 
-/* Bottom Edge Orbiters */
+
 .orbit-bottom {
     width: 100px;
     height: 100px;
@@ -597,7 +598,7 @@ app-document-upload {
     animation: orbit-bottom 30s linear infinite reverse, pulse 4s ease-in-out infinite;
 }
 
-/* Left Edge Orbiters */
+
 .orbit-left {
     width: 90px;
     height: 90px;
@@ -608,7 +609,7 @@ app-document-upload {
     animation: orbit-left 28s linear infinite, pulse 6s ease-in-out infinite;
 }
 
-/* Right Edge Orbiters */
+
 .orbit-right {
     width: 110px;
     height: 110px;
@@ -619,7 +620,7 @@ app-document-upload {
     animation: orbit-right 32s linear infinite reverse, pulse 5s ease-in-out infinite;
 }
 
-/* Semi-circular orbit animations */
+
 @keyframes orbit-top {
     0% {
         transform: translateX(-50%) rotate(0deg) translateY(0px) rotate(0deg);
@@ -660,7 +661,7 @@ app-document-upload {
     }
 }
 
-/* Pulsating glow */
+
 @keyframes pulse {
 
     0%,
@@ -675,4 +676,4 @@ app-document-upload {
         opacity: 1;
         box-shadow: 0 0 80px currentColor, 0 0 150px rgba(255, 255, 255, 0.3);
     }
-}
+}*/

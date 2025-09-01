@@ -14,7 +14,7 @@ import { API_ENDPOINTS } from '../constants/api-endpoints';
   providedIn: 'root',
 })
 export class DocumentService {
-  private baseUrl = 'https://localhost:7103';
+  private baseUrl = 'http://kyc-document-upload.runasp.net';
 
   constructor(private http: HttpClient) {}
 
